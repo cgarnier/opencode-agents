@@ -1,0 +1,40 @@
+# <Project Name>
+
+## Stack
+<!-- Ex: NestJS + TypeScript / Nuxt 3 + Vue / React + Vite -->
+
+## Structure
+<!-- Describe the main folders and their roles -->
+<!-- Ex:
+- src/modules/ — feature modules
+- src/common/  — shared utilities
+- tests/       — test files (mirrors src/)
+-->
+
+## Commands
+<!-- Commands to run the project locally -->
+<!-- Ex:
+- dev: npm run dev
+- install: npm install
+-->
+
+## Quality Checks
+<!-- REQUIRED — agents run ALL of these after every code change -->
+<!-- Remove lines that don't apply, add project-specific ones -->
+- test: <command>
+- lint: <command>
+- format: <command>
+- typecheck: <command>
+- build: <command>
+
+## Conventions
+<!-- Project-specific patterns agents must follow -->
+<!-- Ex:
+- Use named exports, no default exports
+- DTOs validated with class-validator
+- All async functions must have error handling
+- Commit messages: conventional commits (feat/fix/chore...)
+-->
+
+## Notes
+<!-- Gotchas, quirks, things that are not obvious -->
