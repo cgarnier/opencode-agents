@@ -36,5 +36,18 @@
 - Commit messages: conventional commits (feat/fix/chore...)
 -->
 
+## Tracker
+<!-- Ticket system used in this project -->
+<!-- Values: gitlab | github | jira -->
+<!-- Example: tracker: gitlab -->
+
+## Ticket conventions
+<!-- Optional — if absent, /new-ticket uses defaults (English, [Context] Verb+object title, type/size/priority labels) -->
+<!-- Describe project-specific conventions, e.g.: -->
+<!-- - Language: French -->
+<!-- - Title format: feat(scope): description -->
+<!-- - Labels: none (no label taxonomy) -->
+<!-- - Description: Problem / Solution / Impact -->
+
 ## Notes
 <!-- Gotchas, quirks, things that are not obvious -->

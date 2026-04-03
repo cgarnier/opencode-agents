@@ -27,6 +27,7 @@ Chaque agent a un rôle précis, des permissions adaptées, et des règles globa
    - [code-quality](#62-code-quality)
 7. [Commandes personnalisées](#7-commandes-personnalisées)
    - [/ticket](#71-ticket)
+   - [/new-ticket](#72-new-ticket)
 8. [Configuration par projet](#8-configuration-par-projet)
 9. [Exemples de flux complets](#9-exemples-de-flux-complets)
 10. [Personnalisation](#10-personnalisation)
@@ -121,8 +122,9 @@ Done. Run 'opencode' to start.
 | 2 | Symlink `.opencode/agents/` → template | Skip + avertissement si dossier réel existant |
 | 3 | Symlink `.opencode/rules/` → template | Skip + avertissement si dossier réel existant |
 | 4 | Symlink `.opencode/commands/` → template | Skip + avertissement si dossier réel existant |
-| 5 | Copie `opencode.json` | Skip si déjà présent |
-| 6 | Copie `AGENTS.md.template` → `AGENTS.md` | Skip si déjà présent |
+| 5 | Symlink `.opencode/skills/` → template | Skip + avertissement si dossier réel existant |
+| 6 | Copie `opencode.json` | Skip si déjà présent |
+| 7 | Copie `AGENTS.md.template` → `AGENTS.md` | Skip si déjà présent |
 
 **Idempotent** : relancer `agents-setup` dans un projet déjà configuré est sans danger.
 
@@ -133,6 +135,7 @@ Done. Run 'opencode' to start.
 | `.opencode/agents/` | **Symlink** | Mettre à jour le template = mettre à jour tous les projets automatiquement |
 | `.opencode/rules/` | **Symlink** | Idem — les règles git et qualité sont globales |
 | `.opencode/commands/` | **Symlink** | Idem — les commandes personnalisées sont partagées entre tous les projets |
+| `.opencode/skills/` | **Symlink** | Idem — les skills CLI (glab, gh, jira) sont partagés entre tous les projets |
 | `opencode.json` | **Copie** | Chaque projet peut avoir des permissions et modèles différents |
 | `AGENTS.md` | **Copie** | Contenu entièrement spécifique au projet |
 
@@ -166,8 +169,17 @@ Done. Run 'opencode' to start.
     │   ├── security.md              ← subagent
     │   └── git-publisher.md         ← subagent
     │
-    └── commands/                    ← symlinkée dans chaque projet
-        └── ticket.md                ← /ticket <id> [contexte]
+    ├── commands/                    ← symlinkée dans chaque projet
+    │   ├── ticket.md                ← /ticket <id> [contexte]
+    │   └── new-ticket.md            ← /new-ticket <description>
+    │
+    └── skills/                      ← symlinkée dans chaque projet
+        ├── glab/
+        │   └── SKILL.md             ← GitLab CLI (issues, MR, CI, pipelines)
+        ├── gh/
+        │   └── SKILL.md             ← GitHub CLI (issues, PRs, Actions)
+        └── jira/
+            └── SKILL.md             ← Jira CLI via acli (workitems, sprints)
 ```
 
 Après `agents-setup` dans un projet, la structure locale est :
@@ -179,7 +191,8 @@ mon-projet/
 └── .opencode/
     ├── agents/    →  ~/dev/agents/.opencode/agents/    (symlink)
     ├── rules/     →  ~/dev/agents/.opencode/rules/     (symlink)
-    └── commands/  →  ~/dev/agents/.opencode/commands/  (symlink)
+    ├── commands/  →  ~/dev/agents/.opencode/commands/  (symlink)
+    └── skills/    →  ~/dev/agents/.opencode/skills/    (symlink)
 ```
 
 ---
@@ -700,7 +713,7 @@ Le répertoire `commands/` est **symlinkée** depuis le template — ajouter une
 |---|---|---|
 | Entier (`42`) + remote `gitlab.com` | GitLab | `glab issue view` + GraphQL |
 | Entier (`42`) + remote `github.com` | GitHub | `gh issue view` |
-| `PROJ-42` | Jira | `acli jira issue view` |
+| `PROJ-42` | Jira | `acli jira workitem view` |
 
 **Livrable produit :**
 
@@ -717,6 +730,55 @@ Le répertoire `commands/` est **symlinkée** depuis le template — ajouter une
 **Agent à utiliser :** choisir avant de lancer la commande.
 - `plan` — analyse pure, aucun accès bash (recommandé si `glab` est déjà configuré)
 - `build` / `orchestrator` — peut explorer le codebase dynamiquement en complément
+
+---
+
+### 7.2 /new-ticket
+
+**Fichier :** `.opencode/commands/new-ticket.md`
+
+**Usage :**
+```
+/new-ticket <description libre du problème ou de la feature>
+```
+
+**Exemples :**
+```
+/new-ticket bug sur le login quand l'email est vide
+/new-ticket ajouter l'export CSV sur la page des rapports
+/new-ticket refactorer le module de paiement — trop couplé
+```
+
+**Rôle :** crée un ticket dans le bon système de tickets avec pré-analyse automatique. Affiche un aperçu formaté avant de créer. Ne modifie aucun fichier.
+
+**Workflow interne :**
+1. Lit `AGENTS.md` → section `## Tracker` pour détecter le système cible
+2. Fallback : détecte via `git remote get-url origin` (`github.com` → gh, gitlab → glab, sinon → jira)
+3. Lit `## Ticket conventions` dans `AGENTS.md` si elle existe — sinon applique les défauts
+4. Pré-analyse silencieuse : type, size, priority depuis la description
+5. Construit le titre `[Contexte] Verbe + objet` et la description structurée
+6. Affiche le ticket formaté et demande confirmation `[y/N]`
+7. Crée le ticket via le bon CLI
+8. Affiche le lien vers le ticket créé
+
+**Trackers supportés :**
+
+| Tracker | CLI | Détection |
+|---|---|---|
+| GitLab | `glab issue create` | `tracker: gitlab` dans `AGENTS.md` ou remote gitlab |
+| GitHub | `gh issue create` | `tracker: github` dans `AGENTS.md` ou remote github.com |
+| Jira | `acli jira workitem create` | `tracker: jira` dans `AGENTS.md` ou ID `[A-Z]+-\d+` |
+
+**Conventions par défaut (si `## Ticket conventions` absent) :**
+
+| Champ | Valeur |
+|---|---|
+| Langue | Anglais |
+| Titre | `[Context] Verb + object` |
+| Labels | `type::feature\|bug\|tech\|chore` + `size::XS…XL` + `priority::critical…low` |
+| Description | Context / Task / Acceptance criteria / Notes |
+
+**Skills chargés automatiquement** : `glab`, `gh`, ou `jira` selon le tracker détecté — le skill CLI correspondant est consulté pour la syntaxe exacte de la commande de création.
 
 ---
 
@@ -821,6 +883,20 @@ NestJS + TypeScript / Nuxt 3 + Vue / etc.
 - format: npm run format
 - typecheck: npm run typecheck
 - build: npm run build
+
+## Tracker
+<!-- Système de tickets utilisé dans ce projet -->
+<!-- Valeurs : gitlab | github | jira -->
+tracker: gitlab
+
+## Ticket conventions
+<!-- Optionnel — si absent, /new-ticket utilise les défauts (anglais, [Context] Verb+object, labels type/size/priority) -->
+<!-- Exemple :
+- Language: French
+- Title format: feat(scope): description
+- Labels: none
+- Description: Problem / Solution / Impact
+-->
 
 ## Conventions
 - Named exports uniquement, pas de default export
@@ -1185,7 +1261,8 @@ wt-new feature/notifications
 
 | Commande | Description |
 |---|---|
-| `/ticket <id> [contexte]` | Analyse un ticket et ses sous-tickets, produit un plan d'implémentation |
+| `/ticket <id> [contexte]` | Analyse un ticket existant et ses sous-tickets, produit un plan d'implémentation |
+| `/new-ticket <description>` | Crée un ticket (GitLab/GitHub/Jira) avec pré-analyse et preview de confirmation |
 
 ### Helpers shell disponibles
 
@@ -1203,5 +1280,7 @@ wt-new feature/notifications
 | Priorité | Fichier | Action requise |
 |---|---|---|
 | **Obligatoire** | `AGENTS.md` | Remplir `## Quality Checks` avec les commandes du projet |
+| **Obligatoire** | `AGENTS.md` | Remplir `## Tracker` avec `tracker: gitlab\|github\|jira` |
 | Recommandé | `AGENTS.md` | Remplir Stack, Structure, Conventions |
+| Recommandé | `AGENTS.md` | Remplir `## Ticket conventions` si les défauts ne conviennent pas |
 | Optionnel | `opencode.json` | Ajuster permissions bash, ajouter modèles spécifiques |

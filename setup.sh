@@ -23,7 +23,7 @@ echo "────────────────────────�
 mkdir -p "$TARGET_DIR"
 
 # 2. Symlink agents/, rules/ and commands/
-for dir in agents rules commands; do
+for dir in agents rules commands skills; do
   TARGET="$TARGET_DIR/$dir"
   SOURCE="$TEMPLATE_DIR/.opencode/$dir"
 
