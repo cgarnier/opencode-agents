@@ -1,5 +1,20 @@
 # agents — OpenCode Multi-Agent System Template
 
+## Purpose
+
+This repo is an OpenCode agent framework — a collection of agents, skills, commands,
+and rules that power OpenCode sessions, both here and in target projects via symlinks.
+
+When asked to create or modify any OpenCode artifact (agent, skill, command, rule),
+the target location is always `./.opencode/` in this repo:
+
+| Artifact | Path |
+|---|---|
+| Agent | `.opencode/agents/<name>.md` |
+| Skill | `.opencode/skills/<name>/` |
+| Command | `.opencode/commands/<name>.md` |
+| Rule | `.opencode/rules/<name>.md` |
+
 ## Stack
 
 Bash + Markdown + OpenCode agent system (`@opencode-ai/plugin` v1.3.5, managed with Bun).
@@ -25,6 +40,13 @@ No application framework, no TypeScript, no build pipeline.
     │   ├── docs-writer.md
     │   ├── performance.md
     │   └── security.md
+    ├── skills/           — Reusable skill bundles (symlinked into every target project)
+    │   ├── gh/
+    │   ├── glab/
+    │   └── jira/
+    ├── commands/         — Slash commands (symlinked into every target project)
+    │   ├── new-ticket.md
+    │   └── ticket.md
     └── rules/            — Always-on instructions (symlinked into every target project)
         ├── git-safety.md
         └── code-quality.md
