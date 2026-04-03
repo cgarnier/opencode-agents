@@ -13,6 +13,7 @@ permission:
     "ls*": allow
     "cat *": allow
     "head *": allow
+    "tail *": allow
     "find *": allow
     "sort *": allow
 ---

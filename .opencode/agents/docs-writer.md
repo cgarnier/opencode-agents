@@ -13,6 +13,7 @@ permission:
     "cat *": allow
     "find *": allow
     "head *": allow
+    "tail *": allow
     "mkdir *": allow
     "touch *": allow
 ---

@@ -13,6 +13,7 @@ permission:
     "cat *": allow
     "find *": allow
     "head *": allow
+    "tail *": allow
     "sort *": allow
     "echo *": allow
     "uv *": allow
@@ -22,6 +23,7 @@ permission:
     "yarn *": allow
     "bun *": allow
     "node *": allow
+    "vitest *": allow
     "mkdir *": allow
     "touch *": allow
     "make lint *": allow

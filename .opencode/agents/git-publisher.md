@@ -22,6 +22,8 @@ permission:
     "gh pr view*": allow
     "grep *": allow
     "cat *": allow
+    "head *": allow
+    "tail *": allow
     "ls*": allow
 ---
 

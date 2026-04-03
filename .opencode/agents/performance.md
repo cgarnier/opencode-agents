@@ -12,6 +12,7 @@ permission:
     "cat *": allow
     "find *": allow
     "head *": allow
+    "tail *": allow
     "sort *": allow
 ---
 

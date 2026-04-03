@@ -28,6 +28,8 @@ permission:
     "yarn *": allow
     "bun *": allow
     "node *": allow
+    "vitest *": allow
+    "mkdir *": allow
     "make lint *": allow
     "make format *": allow
     "make test *": allow
