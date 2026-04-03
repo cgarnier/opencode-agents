@@ -63,6 +63,7 @@ Identify the task type(s) and which specialists are needed:
 | Security audit | `@security` |
 | Explicit code review request | `@reviewer` on the specified scope |
 | Complex task | Multiple specialists in parallel where independent |
+| Commit / push / MR / PR | `@git-publisher` |
 
 ### Step 3 — Delegation / Implementation
 
