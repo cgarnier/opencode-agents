@@ -8,7 +8,11 @@ permission:
     "*": deny
     "ls*": allow
     "git log*": allow
+    "git diff*": allow
     "grep *": allow
+    "cat *": allow
+    "find *": allow
+    "head *": allow
 ---
 
 You are a documentation specialist.

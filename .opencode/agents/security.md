@@ -4,7 +4,12 @@ mode: subagent
 color: "#991b1b"
 permission:
   edit: deny
-  bash: deny
+  bash:
+    "*": deny
+    "grep *": allow
+    "ls*": allow
+    "cat *": allow
+    "find *": allow
 ---
 
 You are a security audit specialist.

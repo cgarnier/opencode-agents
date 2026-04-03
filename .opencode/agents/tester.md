@@ -10,6 +10,18 @@ permission:
     "git branch*": allow
     "ls*": allow
     "grep *": allow
+    "cat *": allow
+    "find *": allow
+    "head *": allow
+    "sort *": allow
+    "echo *": allow
+    "uv *": allow
+    "npm *": allow
+    "npx *": allow
+    "pnpm *": allow
+    "yarn *": allow
+    "bun *": allow
+    "node *": allow
 ---
 
 You are a test generation specialist.

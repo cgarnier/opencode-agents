@@ -14,6 +14,20 @@ permission:
     "git pull*": ask
     "ls*": allow
     "pwd": allow
+    "grep *": allow
+    "find *": allow
+    "sort *": allow
+    "echo *": allow
+    "cat *": allow
+    "head *": allow
+    "tail *": allow
+    "uv *": allow
+    "npm *": allow
+    "npx *": allow
+    "pnpm *": allow
+    "yarn *": allow
+    "bun *": allow
+    "node *": allow
   task:
     "*": allow
 ---

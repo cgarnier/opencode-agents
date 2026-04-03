@@ -13,6 +13,10 @@ permission:
     "grep *": allow
     "ls*": allow
     "cat *": allow
+    "head *": allow
+    "tail *": allow
+    "find *": allow
+    "sort *": allow
 ---
 
 You are a debug investigation specialist.

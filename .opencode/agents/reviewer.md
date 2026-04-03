@@ -11,6 +11,10 @@ permission:
     "git show*": allow
     "grep *": allow
     "ls*": allow
+    "cat *": allow
+    "head *": allow
+    "find *": allow
+    "sort *": allow
 ---
 
 You are a code review specialist.

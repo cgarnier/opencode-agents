@@ -9,6 +9,10 @@ permission:
     "ls*": allow
     "grep *": allow
     "git diff*": allow
+    "cat *": allow
+    "find *": allow
+    "head *": allow
+    "sort *": allow
 ---
 
 You are a performance audit specialist.
