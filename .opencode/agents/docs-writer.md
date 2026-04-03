@@ -13,6 +13,8 @@ permission:
     "cat *": allow
     "find *": allow
     "head *": allow
+    "mkdir *": allow
+    "touch *": allow
 ---
 
 You are a documentation specialist.

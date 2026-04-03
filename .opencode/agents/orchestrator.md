@@ -28,6 +28,9 @@ permission:
     "yarn *": allow
     "bun *": allow
     "node *": allow
+    "make lint *": allow
+    "make format *": allow
+    "make test *": allow
   task:
     "*": allow
 ---

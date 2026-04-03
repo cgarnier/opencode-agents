@@ -22,6 +22,11 @@ permission:
     "yarn *": allow
     "bun *": allow
     "node *": allow
+    "mkdir *": allow
+    "touch *": allow
+    "make lint *": allow
+    "make format *": allow
+    "make test *": allow
 ---
 
 You are a refactoring specialist.
