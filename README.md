@@ -71,11 +71,19 @@ Un agent de review n'a pas besoin d'écrire des fichiers. Un agent de debug n'a 
 
 ### Setup unique (une seule fois)
 
-Ajoute l'alias dans tes deux shells :
+Lance le script d'installation des helpers shell :
 
 ```bash
-echo 'alias agents-setup="bash $HOME/dev/agents/setup.sh"' | tee -a ~/.zshrc ~/.bashrc
+bash ~/dev/agents/install-shell-helpers.sh
 ```
+
+Ce script met à jour `.bashrc` et `.zshrc` automatiquement :
+- Ajoute `agents-setup` (alias vers `setup.sh`)
+- Remplace les anciens alias `wt-new` / `wt-done` par un `source` vers `shell-functions.sh`
+- Conserve l'alias `wt-list`
+
+> **Pourquoi `source` et pas des alias ?**
+> `wt-new` et `wt-done` doivent changer le répertoire courant du terminal (`cd`). Un alias ou un script s'exécute dans un sous-shell — le `cd` n'affecte pas le shell parent. Seule une fonction shell sourcée dans le shell courant le permet.
 
 Recharge le shell :
 
@@ -155,7 +163,8 @@ Done. Run 'opencode' to start.
     │   ├── refactorer.md            ← subagent
     │   ├── docs-writer.md           ← subagent
     │   ├── performance.md           ← subagent
-    │   └── security.md              ← subagent
+    │   ├── security.md              ← subagent
+    │   └── git-publisher.md         ← subagent
     │
     └── commands/                    ← symlinkée dans chaque projet
         └── ticket.md                ← /ticket <id> [contexte]
@@ -489,7 +498,7 @@ test: ✓ (N passing)
 | Mode | `subagent` |
 | Couleur | Rouge sombre `#991b1b` |
 | Accès fichiers | **Aucun** — `edit: deny` |
-| Bash | **Aucun** — `deny` complet |
+| Bash | `grep`, `ls`, `cat`, `find` uniquement (read-only) |
 
 **Rôle** : audit de sécurité basé sur l'OWASP Top 10. Retourne un rapport avec niveau de sévérité.
 
@@ -507,6 +516,34 @@ test: ✓ (N passing)
 **Niveaux de sévérité** : Critical → High → Medium → Low → Info
 
 **Important** : rapporte uniquement ce qui est constaté dans le code. Ne construit pas de chaînes d'attaque hypothétiques.
+
+---
+
+### 5.11 Git-publisher — subagent
+
+| Propriété | Valeur |
+|---|---|
+| Mode | `subagent` |
+| Couleur | Indigo `#4f46e5` |
+| Accès fichiers | **Aucun** — `edit: deny` |
+| Bash | Git read + `git add/commit/push`, `glab mr`, `gh pr` |
+
+**Rôle** : rédige les messages de commit (conventional commits) et les descriptions de MR/PR, puis exécute le flow complet de publication.
+
+**Workflow** :
+
+```
+1. git status + git diff --staged (ou main...HEAD)
+2. Détection de la plateforme via git remote get-url origin
+   → github.com → gh
+   → autre       → glab
+3. Rédaction du message de commit (conventional commits)
+4. Commit direct si le diff est clair — sinon demande confirmation
+5. git push (avec -u origin <branch> si pas d'upstream)
+6. Propose de créer la MR/PR — si oui, rédige et crée
+```
+
+**Invocation** : `@git-publisher` ou automatiquement par l'orchestrateur après une tâche.
 
 ---
 
@@ -1023,7 +1060,9 @@ Ce que ça fait :
 2. Fetch origin et crée la branche depuis `main` à jour (si elle n'existe pas)
 3. `git worktree add ../mon-projet-feature-auth feature/auth`
 4. Lance `agents-setup` dans le nouveau worktree (symlinks + opencode.json + AGENTS.md)
-5. Affiche la commande à lancer dans le nouveau terminal
+5. `cd` dans le worktree (le terminal se déplace automatiquement)
+6. Lance opencode (bloquant — Ctrl-C pour quitter)
+7. Après fermeture d'opencode, le terminal est toujours dans le worktree → prêt pour `wt-done`
 
 Sortie attendue :
 
@@ -1039,9 +1078,9 @@ Path: /home/<user>/dev/mon-projet-feature-auth
   ✓ AGENTS.md created from template
 
   Worktree ready.
+  When done, run wt-done from inside the worktree to clean up.
 
-  Open a new terminal window and run:
-  opencode /home/<user>/dev/mon-projet-feature-auth
+  → Launching opencode... (Ctrl-C to exit, then run wt-done)
 ```
 
 ### `wt-done` — nettoyer un worktree terminé
@@ -1058,6 +1097,7 @@ Ce que ça fait :
    - **Mergée** → suppression directe sans confirmation
    - **Pas mergée** → avertissement + confirmation explicite requise
 4. `git worktree remove` + `git branch -d` + `git worktree prune`
+5. `cd` dans le repo principal (le terminal revient automatiquement)
 
 ### `wt-list` — voir les worktrees actifs
 
@@ -1073,25 +1113,23 @@ wt-list
 ### Flux complet — deux features en parallèle
 
 ```bash
-source ~/.zshrc   # activer les aliases (une seule fois après installation)
-
 # ── Feature A : auth ──────────────────────────────────────────
 cd ~/dev/mon-projet
 wt-new feature/auth
-# → Ouvrir un nouveau terminal
-opencode ~/dev/mon-projet-feature-auth
+# → cd automatique dans le worktree + opencode lancé
+# → Ctrl-C pour quitter opencode
+# → terminal dans ~/dev/mon-projet-feature-auth
 
-# ── Feature B : notifications (en parallèle) ─────────────────
+# ── Feature B : notifications (depuis un autre terminal) ──────
 cd ~/dev/mon-projet
 wt-new feature/notifications
-# → Ouvrir un autre terminal
-opencode ~/dev/mon-projet-feature-notifications
+# → idem, terminal dans ~/dev/mon-projet-feature-notifications
 
 # ── Nettoyage après merge ──────────────────────────────────────
-# Terminal feature/auth (PR mergée sur GitHub/GitLab)
-wt-done   # → supprime worktree + branche locale
+# (depuis le worktree feature/auth, PR mergée)
+wt-done   # → supprime worktree + branche + cd dans ~/dev/mon-projet
 
-# Terminal feature/notifications
+# (depuis le worktree feature/notifications)
 wt-done   # idem
 ```
 
@@ -1118,16 +1156,17 @@ wt-new feature/notifications
 
 | Agent | Mode | Couleur | Écrit du code | Bash | Cas d'usage |
 |---|---|---|---|---|---|
-| `orchestrator` | primary | Violet | Oui | Git read/write (ask) | Tâches composites, délégation |
+| `orchestrator` | primary | Violet | Oui | Git read/write · utilitaires · uv/npm/… | Tâches composites, délégation |
 | `build` | primary | — | Oui | Git read (auto) · reste (ask) | Implémentation directe |
 | `plan` | primary | — | Non | Non | Planification, exploration |
-| `reviewer` | subagent | Bleu | Non | Git read · grep | Revue de code |
-| `debugger` | subagent | Rouge | Non | Git read · grep · cat | Investigation de bugs |
-| `tester` | subagent | Vert | Oui | Git read · reste (ask) | Génération de tests |
-| `refactorer` | subagent | Orange | Oui | Git read · reste (ask) | Refactoring |
-| `docs-writer` | subagent | Bleu foncé | Oui (docs) | Git log · ls · grep | Documentation |
-| `performance` | subagent | Ambre | Non | ls · grep · audit (ask) | Audit de performances |
-| `security` | subagent | Rouge sombre | Non | Non | Audit de sécurité |
+| `reviewer` | subagent | Bleu | Non | Git read · grep · cat · find | Revue de code |
+| `debugger` | subagent | Rouge | Non | Git read · grep · cat · find | Investigation de bugs |
+| `tester` | subagent | Vert | Oui | Git read · utilitaires · uv/npm/… | Génération de tests |
+| `refactorer` | subagent | Orange | Oui | Git read · utilitaires · uv/npm/… | Refactoring |
+| `docs-writer` | subagent | Bleu foncé | Oui (docs) | Git log/diff · ls · grep · cat · find | Documentation |
+| `performance` | subagent | Ambre | Non | ls · grep · cat · find | Audit de performances |
+| `security` | subagent | Rouge sombre | Non | grep · ls · cat · find (read-only) | Audit de sécurité |
+| `git-publisher` | subagent | Indigo | Non | Git read/add/commit/push · glab · gh | Commit + MR/PR |
 
 ### Commandes OpenCode utiles
 
@@ -1148,14 +1187,16 @@ wt-new feature/notifications
 |---|---|
 | `/ticket <id> [contexte]` | Analyse un ticket et ses sous-tickets, produit un plan d'implémentation |
 
-### Aliases shell disponibles
+### Helpers shell disponibles
 
-| Alias | Script | Description |
-|---|---|---|
-| `agents-setup` | `setup.sh` | Installe les agents dans le projet courant |
-| `wt-new <branch>` | `wt-new.sh` | Crée un worktree + agents-setup |
-| `wt-done` | `wt-done.sh` | Nettoie le worktree courant après merge |
-| `wt-list` | `git worktree list` | Liste tous les worktrees actifs |
+| Commande | Type | Source | Description |
+|---|---|---|---|
+| `agents-setup` | alias | `setup.sh` | Installe les agents dans le projet courant |
+| `wt-new <branch>` | **fonction** | `shell-functions.sh` | Crée un worktree + cd + opencode |
+| `wt-done` | **fonction** | `shell-functions.sh` | Nettoie le worktree + cd vers le repo principal |
+| `wt-list` | alias | `git worktree list` | Liste tous les worktrees actifs |
+
+> `wt-new` et `wt-done` sont des **fonctions shell** (pas des alias) car ils doivent modifier le répertoire courant du terminal. Ils sont chargés via `source "$HOME/dev/agents/shell-functions.sh"` dans `.bashrc` et `.zshrc`.
 
 ### Fichiers clés à modifier après `agents-setup`
 

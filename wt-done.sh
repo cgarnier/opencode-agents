@@ -108,5 +108,5 @@ git worktree prune
 ok "Worktree list pruned"
 
 echo ""
-echo -e "  ${GREEN}Done. You are now in: ${CYAN}${REPO_ROOT}${NC}"
+echo -e "  ${GREEN}Done.${NC}"
 echo ""
