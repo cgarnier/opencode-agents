@@ -45,8 +45,9 @@ No application framework, no TypeScript, no build pipeline.
     │   ├── glab/
     │   └── jira/
     ├── commands/         — Slash commands (symlinked into every target project)
+    │   ├── ticket.md
     │   ├── new-ticket.md
-    │   └── ticket.md
+    │   └── check-agents.md
     └── rules/            — Always-on instructions (symlinked into every target project)
         ├── git-safety.md
         └── code-quality.md

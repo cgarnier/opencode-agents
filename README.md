@@ -28,6 +28,7 @@ Chaque agent a un rôle précis, des permissions adaptées, et des règles globa
 7. [Commandes personnalisées](#7-commandes-personnalisées)
    - [/ticket](#71-ticket)
    - [/new-ticket](#72-new-ticket)
+   - [/check-agents](#73-check-agents)
 8. [Configuration par projet](#8-configuration-par-projet)
 9. [Exemples de flux complets](#9-exemples-de-flux-complets)
 10. [Personnalisation](#10-personnalisation)
@@ -171,7 +172,8 @@ Done. Run 'opencode' to start.
     │
     ├── commands/                    ← symlinkée dans chaque projet
     │   ├── ticket.md                ← /ticket <id> [contexte]
-    │   └── new-ticket.md            ← /new-ticket <description>
+    │   ├── new-ticket.md            ← /new-ticket <description>
+    │   └── check-agents.md          ← /check-agents
     │
     └── skills/                      ← symlinkée dans chaque projet
         ├── glab/
@@ -733,6 +735,56 @@ Le répertoire `commands/` est **symlinkée** depuis le template — ajouter une
 
 ---
 
+### 7.3 /check-agents
+
+**Fichier :** `.opencode/commands/check-agents.md`
+
+**Usage :**
+```
+/check-agents
+```
+
+**Rôle :** audite le `AGENTS.md` du projet courant en le comparant au `AGENTS.md.template` du repo agents. Identifie les sections manquantes ou vides, infère le contenu depuis le codebase, et propose les ajouts — avec confirmation avant d'écrire quoi que ce soit.
+
+**Workflow interne :**
+1. Localise le template via `readlink -f .opencode/` → remonte d'un niveau
+2. Parse les sections des deux fichiers et classe chacune :
+   - `✓ OK` — présente et remplie
+   - `~ Empty` — présente mais vide ou contient uniquement des commentaires/placeholders
+   - `✗ Missing` — absente de `AGENTS.md`
+   - `→ Project-specific` — présente dans le projet mais pas dans le template (listée en info, non modifiée)
+3. Explore le codebase pour inférer le contenu des sections problématiques (`package.json`, `Makefile`, `go.mod`, git remote, etc.)
+4. **Tracker en interactif** : tente la détection via `git remote get-url origin`, demande toujours confirmation, et si c'est incorrect pose la question directement (avec demande du project key si Jira)
+5. Affiche un rapport + preview des additions proposées
+6. Applique uniquement si confirmé — sans jamais écraser le contenu existant
+
+**Exemple de rapport :**
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  AGENTS.md — Audit
+
+  ✓ Stack
+  ✓ Commands
+  ~ Quality Checks        (empty)
+  ✗ Tracker               (missing)
+  → Purpose               (project-specific, kept as-is)
+
+  --- Proposed additions ---
+
+  ## Quality Checks
+  - test: npm test
+  - lint: npm run lint
+  - format: npm run format
+
+  ## Tracker
+  tracker: github
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Apply these additions to AGENTS.md? [y/N]
+```
+
+---
+
 ### 7.2 /new-ticket
 
 **Fichier :** `.opencode/commands/new-ticket.md`
@@ -1263,6 +1315,7 @@ wt-new feature/notifications
 |---|---|
 | `/ticket <id> [contexte]` | Analyse un ticket existant et ses sous-tickets, produit un plan d'implémentation |
 | `/new-ticket <description>` | Crée un ticket (GitLab/GitHub/Jira) avec pré-analyse et preview de confirmation |
+| `/check-agents` | Audite `AGENTS.md` vs le template, infère le contenu manquant, propose et applique les ajouts |
 
 ### Helpers shell disponibles
 
@@ -1284,3 +1337,5 @@ wt-new feature/notifications
 | Recommandé | `AGENTS.md` | Remplir Stack, Structure, Conventions |
 | Recommandé | `AGENTS.md` | Remplir `## Ticket conventions` si les défauts ne conviennent pas |
 | Optionnel | `opencode.json` | Ajuster permissions bash, ajouter modèles spécifiques |
+
+> **Astuce** : lance `/check-agents` après `agents-setup` pour détecter automatiquement les sections vides et laisser l'agent inférer le contenu depuis le codebase.
