@@ -14,13 +14,35 @@ warn() { echo -e "  ${RED}!${NC} $1"; }
 info() { echo -e "  ${CYAN}→${NC} $1"; }
 
 BRANCH="${1:-}"
+FROM_BASE=""
+
+# Parse optional flags from remaining arguments
+shift || true
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --from)
+      shift
+      FROM_BASE="${1:-}"
+      if [ -z "$FROM_BASE" ]; then
+        warn "--from requires a branch name (e.g. --from dev, --from current)"
+        exit 1
+      fi
+      ;;
+    *)
+      warn "Unknown argument: $1"
+      exit 1
+      ;;
+  esac
+  shift
+done
 
 # ── Validation ────────────────────────────────────────────────────────────────
 
 if [ -z "$BRANCH" ]; then
-  echo -e "${RED}Usage:${NC} wt-new <branch-name>"
+  echo -e "${RED}Usage:${NC} wt-new <branch-name> [--from <base-branch>]"
   echo -e "  Example: wt-new feature/auth"
-  echo -e "  Example: wt-new fix/login-bug"
+  echo -e "  Example: wt-new fix/login-bug --from dev"
+  echo -e "  Example: wt-new feature/sub-task --from current"
   exit 1
 fi
 
@@ -54,13 +76,26 @@ if [ -d "$WORKTREE_PATH" ]; then
   exit 1
 fi
 
-# ── Ensure branch exists or create from updated main ─────────────────────────
+# ── Resolve base branch ───────────────────────────────────────────────────────
 
-MAIN_BRANCH="main"
-# detect main vs master
-if ! git show-ref --verify --quiet refs/heads/main; then
-  MAIN_BRANCH="master"
+if [ "$FROM_BASE" = "current" ]; then
+  BASE_BRANCH=$(git branch --show-current)
+  if [ -z "$BASE_BRANCH" ]; then
+    warn "Cannot resolve current branch — HEAD is detached."
+    exit 1
+  fi
+  info "Using current branch as base: ${BASE_BRANCH}"
+elif [ -n "$FROM_BASE" ]; then
+  BASE_BRANCH="$FROM_BASE"
+else
+  # Auto-detect main vs master
+  BASE_BRANCH="main"
+  if ! git show-ref --verify --quiet refs/heads/main; then
+    BASE_BRANCH="master"
+  fi
 fi
+
+# ── Ensure branch exists or create from base ──────────────────────────────────
 
 BRANCH_EXISTS=$(git show-ref --verify --quiet "refs/heads/${BRANCH}" && echo yes || echo no)
 
@@ -69,10 +104,10 @@ if [ "$BRANCH_EXISTS" = "yes" ]; then
 else
   info "Fetching origin..."
   git fetch origin --quiet
-  info "Creating branch '${BRANCH}' from ${MAIN_BRANCH}..."
-  git branch "${BRANCH}" "origin/${MAIN_BRANCH}" 2>/dev/null \
-    || git branch "${BRANCH}" "${MAIN_BRANCH}"
-  ok "Branch '${BRANCH}' created from ${MAIN_BRANCH}"
+  info "Creating branch '${BRANCH}' from ${BASE_BRANCH}..."
+  git branch "${BRANCH}" "origin/${BASE_BRANCH}" 2>/dev/null \
+    || git branch "${BRANCH}" "${BASE_BRANCH}"
+  ok "Branch '${BRANCH}' created from ${BASE_BRANCH}"
 fi
 
 # ── Create the worktree ────────────────────────────────────────────────────────
