@@ -5,7 +5,7 @@ color: "#b45309"
 permission:
   edit: deny
   bash:
-    "*": ask
+    "*": deny
     "ls*": allow
     "grep *": allow
     "git diff*": allow

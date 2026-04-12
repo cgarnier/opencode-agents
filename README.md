@@ -212,7 +212,7 @@ OpenCode propose deux types d'agents :
 | Mode | `primary` |
 | Couleur | Violet `#7c3aed` |
 | Accès fichiers | Read/write complet |
-| Bash | Git read `allow` · git write `ask` · reste `ask` |
+| Bash | Git read `allow` · git checkout/pull `allow` · reste `ask` |
 | Task tool | Tous les subagents `allow` |
 
 **Rôle** : point d'entrée pour les tâches complexes. Analyse la demande, gère la stratégie de branchement, délègue aux bons spécialistes, et valide le tout avec le quality gate final.
@@ -379,7 +379,7 @@ Estimated complexity: XS / S / M / L
 | Mode | `subagent` |
 | Couleur | Vert `#16a34a` |
 | Accès fichiers | **Complet** — `edit: allow` |
-| Bash | `git diff/branch`, `grep`, `ls` · reste `ask` |
+| Bash | `git diff/branch`, `grep`, `ls` · reste `allow` |
 
 **Rôle** : analyse la couverture existante et génère les tests manquants. Respecte les conventions de test du projet. Lance les tests à la fin — ils doivent passer.
 
@@ -415,7 +415,7 @@ test: ✓ (N passing)
 | Mode | `subagent` |
 | Couleur | Orange `#ea580c` |
 | Accès fichiers | **Complet** — `edit: allow` |
-| Bash | `git diff/branch`, `grep`, `ls` · reste `ask` |
+| Bash | `git diff/branch`, `grep`, `ls` · reste `allow` |
 
 **Rôle** : améliore la structure interne du code sans changer son comportement observable. Propose un plan avant d'agir.
 
@@ -477,7 +477,7 @@ test: ✓ (N passing)
 | Mode | `subagent` |
 | Couleur | Ambre `#b45309` |
 | Accès fichiers | **Aucun** — `edit: deny` |
-| Bash | `ls`, `grep`, `git diff` · commandes d'audit `ask` |
+| Bash | `ls`, `grep`, `git diff`, `cat`, `find` · aucune autre (`deny`) |
 
 **Rôle** : audit de performance. Identifie les bottlenecks, retourne un rapport priorisé par impact utilisateur.
 
@@ -1176,16 +1176,22 @@ OpenCode ne gère pas nativement le parallélisme de sessions. La solution est *
 
 Chaque dossier est indépendant sur le disque mais partage le même historique git.
 
-### `wt-new <branch>` — créer un worktree
+### `wt-new <branch> [--from <base>]` — créer un worktree
 
 ```bash
 # Depuis n'importe où dans le repo principal
 wt-new feature/auth
+
+# Forker depuis une branche spécifique au lieu de main
+wt-new feature/notifications --from feature/auth
+
+# Forker depuis la branche courante (équivalent raccourci)
+wt-new feature/sub-task --from current
 ```
 
 Ce que ça fait :
 1. Refuse de travailler sur `main`/`master`
-2. Fetch origin et crée la branche depuis `main` à jour (si elle n'existe pas)
+2. Fetch origin et crée la branche depuis `main` à jour (ou depuis `--from <base>` si spécifié)
 3. `git worktree add ../mon-projet-feature-auth feature/auth`
 4. Lance `agents-setup` dans le nouveau worktree (symlinks + opencode.json + AGENTS.md)
 5. `cd` dans le worktree (le terminal se déplace automatiquement)
@@ -1266,15 +1272,15 @@ wt-done   # idem
 Si `feature/notifications` dépend de `feature/auth` (pas encore mergée dans main) :
 
 ```bash
-# Se placer dans le worktree de feature/auth
-cd ~/dev/mon-projet-feature-auth
+# Option 1 — depuis n'importe où, en nommant la branche source
+wt-new feature/notifications --from feature/auth
 
-# Créer le worktree depuis la branche actuelle
-wt-new feature/notifications
-# → fork depuis feature/auth (puisqu'on est dans ce worktree)
+# Option 2 — depuis le worktree de feature/auth, avec --from current
+cd ~/dev/mon-projet-feature-auth
+wt-new feature/notifications --from current
 ```
 
-> `wt-new` crée la branche depuis `main` par défaut. Pour forker depuis une autre branche, lance `wt-new` depuis le worktree de cette branche.
+> `wt-new` crée la branche depuis `main` par défaut. Utiliser `--from <branche>` pour forker depuis n'importe quelle branche sans se déplacer.
 
 ---
 
@@ -1322,7 +1328,7 @@ wt-new feature/notifications
 | Commande | Type | Source | Description |
 |---|---|---|---|
 | `agents-setup` | alias | `setup.sh` | Installe les agents dans le projet courant |
-| `wt-new <branch>` | **fonction** | `shell-functions.sh` | Crée un worktree + cd + opencode |
+| `wt-new <branch> [--from <base>]` | **fonction** | `shell-functions.sh` | Crée un worktree + cd + opencode (base: `main` par défaut) |
 | `wt-done` | **fonction** | `shell-functions.sh` | Nettoie le worktree + cd vers le repo principal |
 | `wt-list` | alias | `git worktree list` | Liste tous les worktrees actifs |
 

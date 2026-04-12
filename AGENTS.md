@@ -24,11 +24,13 @@ No application framework, no TypeScript, no build pipeline.
 
 ```
 .
-├── setup.sh              — Install agents into a target project (run from that project's root)
-├── wt-new.sh             — Create a git worktree + branch, symlink .env*, run setup, launch opencode
-├── wt-done.sh            — Tear down a worktree: remove dir, delete branch, prune list
-├── opencode.json         — Template OpenCode config (copied into target projects, not used here)
-├── AGENTS.md.template    — Starter AGENTS.md copied into target projects by setup.sh
+├── setup.sh                  — Install agents into a target project (run from that project's root)
+├── wt-new.sh                 — Create a git worktree + branch, symlink .env*, run setup, launch opencode
+├── wt-done.sh                — Tear down a worktree: remove dir, delete branch, prune list
+├── shell-functions.sh        — Defines the wt-new and wt-done shell functions (must be sourced)
+├── install-shell-helpers.sh  — One-time installer: injects source shell-functions.sh into .bashrc/.zshrc
+├── opencode.json             — Template OpenCode config (copied into target projects, not used here)
+├── AGENTS.md.template        — Starter AGENTS.md copied into target projects by setup.sh
 └── .opencode/
     ├── package.json      — Single dep: @opencode-ai/plugin
     ├── agents/           — Subagent definitions (symlinked into every target project)
@@ -39,7 +41,8 @@ No application framework, no TypeScript, no build pipeline.
     │   ├── refactorer.md
     │   ├── docs-writer.md
     │   ├── performance.md
-    │   └── security.md
+    │   ├── security.md
+    │   └── git-publisher.md
     ├── skills/           — Reusable skill bundles (symlinked into every target project)
     │   ├── gh/
     │   ├── glab/
@@ -125,10 +128,10 @@ permission:
 ```
 
 Permission model rules:
-- **Read-only agents** (`reviewer`, `debugger`, `performance`, `security`): `edit: deny`, bash locked to `git diff*`, `git log*`, `grep *`, `ls*`
-- **Write agents** (`tester`, `refactorer`, `docs-writer`): no `edit: deny`, bash restricted to safe reads + specific commands needed
-- **Orchestrator**: `task: "*": allow` so it can invoke all subagents; bash is `ask` for most mutating git ops
-- **Security agent**: most restricted — `edit: deny` + `bash: deny` (complete lockdown)
+- **Read-only agents** (`reviewer`, `debugger`, `performance`, `security`): `edit: deny`, bash limited to explicit allow list; catch-all is `deny`
+- **Write agents** (`tester`, `refactorer`, `docs-writer`): no `edit: deny`, explicit allow list for common commands; catch-all is `allow` so any stack's tooling works without prompting
+- **Orchestrator**: `task: "*": allow` so it can invoke all subagents; git checkout/pull are `allow`; catch-all is `ask` for truly unexpected commands
+- **Security agent**: most restricted — `edit: deny`, bash limited to `grep *`, `ls*`, `cat *`, `find *` only
 
 Agent body is plain markdown using `##` sections. Structure:
 1. One-sentence role statement
@@ -186,4 +189,4 @@ All names in kebab-case. Never commit directly to `main` (enforced by `.opencode
 - **Per-project files**: `opencode.json` and `AGENTS.md` are *copied* (not symlinked) so each project can customize them independently.
 - **`AGENTS.md.template`** is the canonical starter — do not use it directly; `setup.sh` copies it as `AGENTS.md` into the target project.
 - **Bun for the plugin only**: `.opencode/package.json` has one dep (`@opencode-ai/plugin`). `node_modules`, `package.json`, and `bun.lock` are gitignored inside `.opencode/` so the symlink in target projects doesn't pull in local build artifacts.
-- **`wt-new` requires `opencode` on PATH**: it ends with `exec opencode "$WORKTREE_PATH"` — the binary must be installed system-wide.
+- **`wt-new` requires `opencode` on PATH**: it ends with `opencode "$worktree_path"` — the binary must be installed system-wide.

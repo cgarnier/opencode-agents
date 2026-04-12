@@ -10,8 +10,8 @@ permission:
     "git diff*": allow
     "git log*": allow
     "git fetch*": allow
-    "git checkout*": ask
-    "git pull*": ask
+    "git checkout*": allow
+    "git pull*": allow
     "ls*": allow
     "pwd": allow
     "grep *": allow

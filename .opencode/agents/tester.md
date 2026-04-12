@@ -5,7 +5,7 @@ color: "#16a34a"
 permission:
   edit: allow
   bash:
-    "*": ask
+    "*": allow
     "git diff*": allow
     "git branch*": allow
     "ls*": allow
