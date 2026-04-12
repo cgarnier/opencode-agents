@@ -143,6 +143,14 @@ Done. Run 'opencode' to start.
 
 > To customize an agent for a specific project, remove the `.opencode/agents/` symlink and replace it with a real folder containing your overrides. See [Customization](#10-customization).
 
+### Why per-project and not global
+
+The agent *logic* (agents, rules, commands, skills) is already global: it lives in `~/dev/agents/` and is symlinked into every project. What's installed per-project is the *context* — `AGENTS.md` and `opencode.json` — which tells the agents what to do specifically in *this* project.
+
+This distinction matters because agent quality is directly tied to project quality. `AGENTS.md` tells agents which commands to run for the quality gate, which tracker to use, what the coding conventions are. On a well-managed project — quality checks defined, conventions documented, tracker configured — the agents work exactly as intended. On a project with none of that, they operate blind: they skip the quality gate, pick the wrong tracker, and apply generic conventions that may contradict the actual codebase.
+
+If the system were installed globally with a single shared config, a poorly maintained project would silently degrade behavior across the board — wrong commands, wrong tracker, wrong conventions, no guardrails. The per-project model isolates each project's context: a project that hasn't done the setup gets a clear signal (empty sections flagged by `/check-agents`) rather than silently broken agents. Good projects are not affected by bad ones.
+
 ---
 
 ## 4. File structure
