@@ -1,18 +1,18 @@
-# OpenCode — Système multi-agents dev
+# OpenCode — Multi-Agent Dev System
 
-Système d'agents spécialisés pour OpenCode, conçu pour le développement fullstack (front, back, devops).
-Chaque agent a un rôle précis, des permissions adaptées, et des règles globales garantissent que `main` n'est jamais touché et que tous les checks qualité passent avant de déclarer une tâche terminée.
+A system of specialized agents for OpenCode, designed for fullstack development (front, back, devops).
+Each agent has a precise role and scoped permissions. Global rules ensure `main` is never touched and all quality checks pass before a task is declared done.
 
 ---
 
-## Table des matières
+## Table of contents
 
-1. [Vue d'ensemble](#1-vue-densemble)
-2. [Prérequis](#2-prérequis)
+1. [Overview](#1-overview)
+2. [Prerequisites](#2-prerequisites)
 3. [Installation](#3-installation)
-4. [Structure des fichiers](#4-structure-des-fichiers)
+4. [File structure](#4-file-structure)
 5. [Agents](#5-agents)
-   - [Orchestrateur](#51-orchestrateur--primary)
+   - [Orchestrator](#51-orchestrator--primary)
    - [Build](#52-build--primary-built-in)
    - [Plan](#53-plan--primary-built-in)
    - [Reviewer](#54-reviewer--subagent)
@@ -22,88 +22,89 @@ Chaque agent a un rôle précis, des permissions adaptées, et des règles globa
    - [Docs-writer](#58-docs-writer--subagent)
    - [Performance](#59-performance--subagent)
    - [Security](#510-security--subagent)
-6. [Règles globales](#6-règles-globales)
+   - [Git-publisher](#511-git-publisher--subagent)
+6. [Global rules](#6-global-rules)
    - [git-safety](#61-git-safety)
    - [code-quality](#62-code-quality)
-7. [Commandes personnalisées](#7-commandes-personnalisées)
+7. [Custom commands](#7-custom-commands)
    - [/ticket](#71-ticket)
    - [/new-ticket](#72-new-ticket)
    - [/check-agents](#73-check-agents)
-8. [Configuration par projet](#8-configuration-par-projet)
-9. [Exemples de flux complets](#9-exemples-de-flux-complets)
-10. [Personnalisation](#10-personnalisation)
-11. [Travail en parallèle — Worktrees](#11-travail-en-parallèle--worktrees)
-12. [Référence rapide](#12-référence-rapide)
+8. [Per-project configuration](#8-per-project-configuration)
+9. [Complete workflow examples](#9-complete-workflow-examples)
+10. [Customization](#10-customization)
+11. [Parallel work — Worktrees](#11-parallel-work--worktrees)
+12. [Quick reference](#12-quick-reference)
 
 ---
 
-## 1. Vue d'ensemble
+## 1. Overview
 
-### Problème résolu
+### Problem solved
 
-Le mode `build` par défaut d'OpenCode est un agent généraliste : il fait tout, mais sans guardrails. Il peut travailler sur `main`, oublier de lancer les tests, et mélanger investigation et implémentation dans le même contexte.
+OpenCode's default `build` mode is a generalist agent: it does everything, but without guardrails. It can work on `main`, forget to run tests, and mix investigation and implementation in the same context.
 
-Ce système apporte :
+This system provides:
 
-- **Protection de `main`** — aucun agent ne touche `main` directement. La branche de travail est toujours décidée en amont, avec confirmation si le contexte est ambigu.
-- **Spécialisation** — chaque type de tâche (review, debug, tests, refactoring, docs, perf, sécu) a un agent dédié avec un process et des permissions adaptés.
-- **Quality gate automatique** — après tout changement de code, les checks définis dans `AGENTS.md` (lint, typecheck, tests, build) doivent passer. Un agent ne déclare jamais une tâche terminée si un check échoue.
-- **Délégation parallèle** — l'orchestrateur peut lancer plusieurs agents spécialisés en parallèle et synthétiser les résultats.
+- **`main` protection** — no agent touches `main` directly. The working branch is always decided upfront, with confirmation if the context is ambiguous.
+- **Specialization** — each task type (review, debug, tests, refactoring, docs, perf, security) has a dedicated agent with a tailored process and permissions.
+- **Automatic quality gate** — after any code change, the checks defined in `AGENTS.md` (lint, typecheck, tests, build) must pass. An agent never declares a task done if a check fails.
+- **Parallel delegation** — the orchestrator can launch several specialized agents in parallel and synthesize the results.
 
-### Philosophie
+### Philosophy
 
 ```
-Un agent = un rôle = des permissions adaptées à ce rôle
+One agent = one role = permissions scoped to that role
 ```
 
-Un agent de review n'a pas besoin d'écrire des fichiers. Un agent de debug n'a pas besoin de modifier du code. Ces restrictions ne sont pas des limitations artificielles : elles garantissent que chaque agent fait exactement ce pour quoi il est conçu, sans risque d'effets de bord.
+A review agent doesn't need to write files. A debug agent doesn't need to modify code. These restrictions are not artificial limitations: they ensure each agent does exactly what it was designed to do, with no risk of side effects.
 
 ---
 
-## 2. Prérequis
+## 2. Prerequisites
 
-- [OpenCode](https://opencode.ai) installé (`curl -fsSL https://opencode.ai/install | bash`)
-- Un provider Claude configuré dans OpenCode (`/connect` dans le TUI)
-- Le répertoire template situé à `~/dev/agents/` (ce repo)
-- `git` disponible dans le PATH
+- [OpenCode](https://opencode.ai) installed (`curl -fsSL https://opencode.ai/install | bash`)
+- A Claude provider configured in OpenCode (`/connect` in the TUI)
+- The template directory at `~/dev/agents/` (this repo)
+- `git` available in the PATH
 
 ---
 
 ## 3. Installation
 
-### Setup unique (une seule fois)
+### One-time setup
 
-Lance le script d'installation des helpers shell :
+Run the shell helpers installer:
 
 ```bash
 bash ~/dev/agents/install-shell-helpers.sh
 ```
 
-Ce script met à jour `.bashrc` et `.zshrc` automatiquement :
-- Ajoute `agents-setup` (alias vers `setup.sh`)
-- Remplace les anciens alias `wt-new` / `wt-done` par un `source` vers `shell-functions.sh`
-- Conserve l'alias `wt-list`
+This script updates `.bashrc` and `.zshrc` automatically:
+- Adds `agents-setup` (alias for `setup.sh`)
+- Replaces any old `wt-new` / `wt-done` aliases with a `source` of `shell-functions.sh`
+- Keeps the `wt-list` alias
 
-> **Pourquoi `source` et pas des alias ?**
-> `wt-new` et `wt-done` doivent changer le répertoire courant du terminal (`cd`). Un alias ou un script s'exécute dans un sous-shell — le `cd` n'affecte pas le shell parent. Seule une fonction shell sourcée dans le shell courant le permet.
+> **Why `source` instead of aliases?**
+> `wt-new` and `wt-done` need to change the terminal's current directory (`cd`). An alias or script runs in a subshell — the `cd` doesn't affect the parent shell. Only a shell function sourced into the current shell can do this.
 
-Recharge le shell :
+Reload the shell:
 
 ```bash
-source ~/.zshrc   # ou source ~/.bashrc
+source ~/.zshrc   # or source ~/.bashrc
 ```
 
-### Par projet (dans chaque nouveau repo)
+### Per-project (in each new repo)
 
 ```bash
-cd mon-projet/
+cd my-project/
 agents-setup
 ```
 
-Sortie attendue :
+Expected output:
 
 ```
-OpenCode multi-agent setup → /chemin/vers/mon-projet
+OpenCode multi-agent setup → /path/to/my-project
 ──────────────────────────────────────────
   ✓ .opencode/agents/ → /home/<user>/dev/agents/.opencode/agents
   ✓ .opencode/rules/  → /home/<user>/dev/agents/.opencode/rules
@@ -115,52 +116,52 @@ OpenCode multi-agent setup → /chemin/vers/mon-projet
 Done. Run 'opencode' to start.
 ```
 
-### Ce que fait `setup.sh` en détail
+### What `setup.sh` does in detail
 
-| Étape | Action | Comportement si déjà présent |
+| Step | Action | Behavior if already present |
 |---|---|---|
-| 1 | Crée `.opencode/` | Ignoré si existe |
-| 2 | Symlink `.opencode/agents/` → template | Skip + avertissement si dossier réel existant |
-| 3 | Symlink `.opencode/rules/` → template | Skip + avertissement si dossier réel existant |
-| 4 | Symlink `.opencode/commands/` → template | Skip + avertissement si dossier réel existant |
-| 5 | Symlink `.opencode/skills/` → template | Skip + avertissement si dossier réel existant |
-| 6 | Copie `opencode.json` | Skip si déjà présent |
-| 7 | Copie `AGENTS.md.template` → `AGENTS.md` | Skip si déjà présent |
+| 1 | Creates `.opencode/` | Skipped if exists |
+| 2 | Symlink `.opencode/agents/` → template | Skip + warning if a real folder already exists |
+| 3 | Symlink `.opencode/rules/` → template | Skip + warning if a real folder already exists |
+| 4 | Symlink `.opencode/commands/` → template | Skip + warning if a real folder already exists |
+| 5 | Symlink `.opencode/skills/` → template | Skip + warning if a real folder already exists |
+| 6 | Copies `opencode.json` | Skip if already present |
+| 7 | Copies `AGENTS.md.template` → `AGENTS.md` | Skip if already present |
 
-**Idempotent** : relancer `agents-setup` dans un projet déjà configuré est sans danger.
+**Idempotent**: re-running `agents-setup` in an already-configured project is safe.
 
-### Stratégie symlink vs copie
+### Symlink vs copy strategy
 
-| Fichier | Stratégie | Raison |
+| File | Strategy | Reason |
 |---|---|---|
-| `.opencode/agents/` | **Symlink** | Mettre à jour le template = mettre à jour tous les projets automatiquement |
-| `.opencode/rules/` | **Symlink** | Idem — les règles git et qualité sont globales |
-| `.opencode/commands/` | **Symlink** | Idem — les commandes personnalisées sont partagées entre tous les projets |
-| `.opencode/skills/` | **Symlink** | Idem — les skills CLI (glab, gh, jira) sont partagés entre tous les projets |
-| `opencode.json` | **Copie** | Chaque projet peut avoir des permissions et modèles différents |
-| `AGENTS.md` | **Copie** | Contenu entièrement spécifique au projet |
+| `.opencode/agents/` | **Symlink** | Updating the template instantly updates all projects |
+| `.opencode/rules/` | **Symlink** | Same — git and quality rules are global |
+| `.opencode/commands/` | **Symlink** | Same — custom commands are shared across all projects |
+| `.opencode/skills/` | **Symlink** | Same — CLI skills (glab, gh, jira) are shared |
+| `opencode.json` | **Copy** | Each project can have different permissions and models |
+| `AGENTS.md` | **Copy** | Content is entirely project-specific |
 
-> Pour customiser un agent sur un projet spécifique, supprimer le symlink `.opencode/agents/` et le remplacer par un vrai dossier contenant tes overrides. Voir [Personnalisation](#9-personnalisation).
+> To customize an agent for a specific project, remove the `.opencode/agents/` symlink and replace it with a real folder containing your overrides. See [Customization](#10-customization).
 
 ---
 
-## 4. Structure des fichiers
+## 4. File structure
 
 ```
 ~/dev/agents/
 │
-├── README.md                        ← cette documentation
-├── setup.sh                         ← script d'installation (agents-setup)
-├── opencode.json                    ← template de config (copié dans chaque projet)
-├── AGENTS.md.template               ← starter AGENTS.md (copié dans chaque projet)
+├── README.md                        ← this documentation
+├── setup.sh                         ← installation script (agents-setup)
+├── opencode.json                    ← config template (copied into each project)
+├── AGENTS.md.template               ← starter AGENTS.md (copied into each project)
 │
 └── .opencode/
-    ├── rules/                       ← symlinkée dans chaque projet
-    │   ├── git-safety.md            ← règle branchement (alwaysApply: true)
-    │   └── code-quality.md          ← règle quality gate (alwaysApply: true)
+    ├── rules/                       ← symlinked into each project
+    │   ├── git-safety.md            ← branching rule (alwaysApply: true)
+    │   └── code-quality.md          ← quality gate rule (alwaysApply: true)
     │
-    ├── agents/                      ← symlinkée dans chaque projet
-    │   ├── orchestrator.md          ← agent PRIMARY
+    ├── agents/                      ← symlinked into each project
+    │   ├── orchestrator.md          ← PRIMARY agent
     │   ├── reviewer.md              ← subagent
     │   ├── debugger.md              ← subagent
     │   ├── tester.md                ← subagent
@@ -170,12 +171,12 @@ Done. Run 'opencode' to start.
     │   ├── security.md              ← subagent
     │   └── git-publisher.md         ← subagent
     │
-    ├── commands/                    ← symlinkée dans chaque projet
-    │   ├── ticket.md                ← /ticket <id> [contexte]
+    ├── commands/                    ← symlinked into each project
+    │   ├── ticket.md                ← /ticket <id> [context]
     │   ├── new-ticket.md            ← /new-ticket <description>
     │   └── check-agents.md          ← /check-agents
     │
-    └── skills/                      ← symlinkée dans chaque projet
+    └── skills/                      ← symlinked into each project
         ├── glab/
         │   └── SKILL.md             ← GitLab CLI (issues, MR, CI, pipelines)
         ├── gh/
@@ -184,12 +185,12 @@ Done. Run 'opencode' to start.
             └── SKILL.md             ← Jira CLI via acli (workitems, sprints)
 ```
 
-Après `agents-setup` dans un projet, la structure locale est :
+After `agents-setup` in a project, the local structure is:
 
 ```
-mon-projet/
-├── opencode.json                    ← copié, customisable
-├── AGENTS.md                        ← copié, à remplir
+my-project/
+├── opencode.json                    ← copied, customizable
+├── AGENTS.md                        ← copied, to be filled in
 └── .opencode/
     ├── agents/    →  ~/dev/agents/.opencode/agents/    (symlink)
     ├── rules/     →  ~/dev/agents/.opencode/rules/     (symlink)
@@ -201,203 +202,203 @@ mon-projet/
 
 ## 5. Agents
 
-OpenCode propose deux types d'agents :
-- **Primary** : agents interactifs, accessibles via la touche **Tab** dans le TUI
-- **Subagent** : agents spécialisés, invocables via `@nom` dans un message ou automatiquement via le Task tool
+OpenCode provides two types of agents:
+- **Primary**: interactive agents, accessible via the **Tab** key in the TUI
+- **Subagent**: specialized agents, invokable via `@name` in a message or automatically via the Task tool
 
-### 5.1 Orchestrateur — primary
+### 5.1 Orchestrator — primary
 
-| Propriété | Valeur |
+| Property | Value |
 |---|---|
 | Mode | `primary` |
-| Couleur | Violet `#7c3aed` |
-| Accès fichiers | Read/write complet |
-| Bash | Git read `allow` · git checkout/pull `allow` · reste `ask` |
-| Task tool | Tous les subagents `allow` |
+| Color | Purple `#7c3aed` |
+| File access | Full read/write |
+| Bash | Git read `allow` · git checkout/pull `allow` · rest `ask` |
+| Task tool | All subagents `allow` |
 
-**Rôle** : point d'entrée pour les tâches complexes. Analyse la demande, gère la stratégie de branchement, délègue aux bons spécialistes, et valide le tout avec le quality gate final.
+**Role**: entry point for complex tasks. Analyzes the request, manages the branching strategy, delegates to the right specialists, and validates everything with the final quality gate.
 
-**Quand l'utiliser** : dès qu'une tâche dépasse une simple implémentation — revue + sécu, debug + fix, refactoring + tests, etc.
+**When to use**: whenever a task goes beyond a simple implementation — review + security, debug + fix, refactoring + tests, etc.
 
-**Workflow interne** :
+**Internal workflow**:
 
 ```
 1. Branch Decision
    └─ git branch --show-current
-   └─ Appliquer git-safety (voir §6.1)
-   └─ Demander si doute sur la branche cible
+   └─ Apply git-safety (see §6.1)
+   └─ Ask if branch target is ambiguous
 
 2. Task Analysis
-   └─ Lire AGENTS.md (stack, conventions, quality checks)
-   └─ Identifier le(s) type(s) de tâche
-   └─ Sélectionner les spécialistes
+   └─ Read AGENTS.md (stack, conventions, quality checks)
+   └─ Identify task type(s)
+   └─ Select specialists
 
-3. Délégation
-   └─ Tâches indépendantes → lancement en parallèle
-   └─ Tâches dépendantes  → lancement séquentiel
+3. Delegation
+   └─ Independent tasks → launch in parallel
+   └─ Dependent tasks   → launch sequentially
 
-4. Quality Gate final
-   └─ Lire ## Quality Checks dans AGENTS.md
-   └─ Exécuter : format → lint → typecheck → test → build
-   └─ Corriger si échec, retry jusqu'à passage complet
+4. Final Quality Gate
+   └─ Read ## Quality Checks in AGENTS.md
+   └─ Run: format → lint → typecheck → test → build
+   └─ Fix failures, retry until all pass
 
-5. Synthèse
-   └─ Branche utilisée / créée
-   └─ Résultats des spécialistes
-   └─ Statut quality gate
+5. Synthesis
+   └─ Branch used / created
+   └─ Specialist results
+   └─ Quality gate status
 ```
 
 ---
 
 ### 5.2 Build — primary (built-in)
 
-| Propriété | Valeur |
+| Property | Value |
 |---|---|
-| Mode | `primary` (agent built-in OpenCode, customisé) |
-| Accès fichiers | Read/write complet |
-| Bash | Git read `allow` · reste `ask` |
+| Mode | `primary` (built-in OpenCode agent, customized) |
+| File access | Full read/write |
+| Bash | Git read `allow` · rest `ask` |
 
-**Rôle** : implémentation directe. Agent par défaut pour écrire du code, créer des fichiers, corriger des bugs simples.
+**Role**: direct implementation. Default agent for writing code, creating files, fixing simple bugs.
 
-**Différence avec l'orchestrateur** : le `build` travaille directement sans déléguer. À utiliser pour les tâches simples et ciblées. Pour les tâches composites, préférer l'orchestrateur.
+**Difference from the orchestrator**: `build` works directly without delegating. Use it for simple, focused tasks. For composite tasks, prefer the orchestrator.
 
-**Customisation dans `opencode.json`** :
-- Git read (status, diff, log, branch, fetch) : `allow` automatique
-- Tout le reste bash : `ask` — l'agent demande confirmation avant d'exécuter
+**Customization in `opencode.json`**:
+- Git read (status, diff, log, branch, fetch): automatic `allow`
+- All other bash: `ask` — the agent asks for confirmation before executing
 
 ---
 
 ### 5.3 Plan — primary (built-in)
 
-| Propriété | Valeur |
+| Property | Value |
 |---|---|
-| Mode | `primary` (agent built-in OpenCode, customisé) |
-| Accès fichiers | **Aucun** — `edit: deny` |
-| Bash | **Aucun** — `deny` complet |
+| Mode | `primary` (built-in OpenCode agent, customized) |
+| File access | **None** — `edit: deny` |
+| Bash | **None** — full `deny` |
 
-**Rôle** : réflexion et planification sans modifier quoi que ce soit. Idéal pour explorer une architecture, concevoir une feature, ou comprendre une base de code avant d'agir.
+**Role**: thinking and planning without modifying anything. Ideal for exploring an architecture, designing a feature, or understanding a codebase before acting.
 
-**Utilisation** : appuyer sur **Tab** dans le TUI pour basculer entre Build, Plan et Orchestrateur.
+**Usage**: press **Tab** in the TUI to cycle between Build, Plan and Orchestrator.
 
 ---
 
 ### 5.4 Reviewer — subagent
 
-| Propriété | Valeur |
+| Property | Value |
 |---|---|
 | Mode | `subagent` |
-| Couleur | Bleu `#0891b2` |
-| Accès fichiers | **Aucun** — `edit: deny` |
-| Bash | `git diff/log/show`, `grep`, `ls` uniquement |
+| Color | Blue `#0891b2` |
+| File access | **None** — `edit: deny` |
+| Bash | `git diff/log/show`, `grep`, `ls` only |
 
-**Rôle** : revue de code structurée. Analyse le code sur 8 dimensions et retourne un rapport hiérarchisé.
+**Role**: structured code review. Analyzes code across 8 dimensions and returns a hierarchical report.
 
-**Dimensions analysées** :
-- Correctness (logique, edge cases, null handling)
-- Quality (nommage, taille des fonctions, responsabilité unique)
-- Duplication (logique répétée à extraire)
-- Complexity (code imbriqué, cyclomatic complexity)
-- Patterns (anti-patterns, incohérences avec le reste du projet)
-- Error handling (try/catch manquants, promise rejections silencieuses)
-- Types (usage de `any`, types manquants — projets TS)
-- Tests (chemins critiques non testés)
+**Dimensions analyzed**:
+- Correctness (logic, edge cases, null handling)
+- Quality (naming, function size, single responsibility)
+- Duplication (repeated logic to extract)
+- Complexity (nested code, cyclomatic complexity)
+- Patterns (anti-patterns, inconsistencies with the rest of the project)
+- Error handling (missing try/catch, silent promise rejections)
+- Types (use of `any`, missing types — TS projects)
+- Tests (untested critical paths)
 
-**Format de sortie** :
+**Output format**:
 
 ```
 ## Code Review — <scope>
 
 ### Critical
-- [fichier:ligne] Description + Suggestion
+- [file:line] Description + Suggestion
 
 ### Warning
-- [fichier:ligne] Description + Suggestion
+- [file:line] Description + Suggestion
 
 ### Info
-- [fichier:ligne] Note mineure + Suggestion
+- [file:line] Minor note + Suggestion
 
 ### Positive
-- Ce qui est bien fait (1-3 items max)
+- What is well done (1-3 items max)
 
 ### Summary
-Évaluation globale en 2-3 phrases.
+Overall assessment in 2-3 sentences.
 ```
 
-**Invocation** : `@reviewer revue le module auth` ou automatiquement par l'orchestrateur.
+**Invocation**: `@reviewer review the auth module` or automatically by the orchestrator.
 
 ---
 
 ### 5.5 Debugger — subagent
 
-| Propriété | Valeur |
+| Property | Value |
 |---|---|
 | Mode | `subagent` |
-| Couleur | Rouge `#dc2626` |
-| Accès fichiers | **Aucun** — `edit: deny` |
-| Bash | `git log/diff/show/blame`, `grep`, `ls`, `cat` uniquement |
+| Color | Red `#dc2626` |
+| File access | **None** — `edit: deny` |
+| Bash | `git log/diff/show/blame`, `grep`, `ls`, `cat` only |
 
-**Rôle** : investigation de bugs par hypothèses et preuves. Ne corrige jamais — identifie et localise.
+**Role**: hypothesis-driven bug investigation. Never fixes — identifies and locates.
 
-**Process en 4 phases** :
+**4-phase process**:
 
 ```
-Phase 1 — Comprendre le symptôme
-  → Comportement observé vs attendu, conditions de reproduction
+Phase 1 — Understand the symptom
+  → Observed vs expected behavior, reproduction conditions
 
-Phase 2 — Formuler des hypothèses
-  → 2-4 causes racines plausibles, classées par vraisemblance
+Phase 2 — Form hypotheses
+  → 2-4 plausible root causes, ranked by likelihood
 
-Phase 3 — Investiguer
-  → Tracer le flux de données, git log, grep, éliminer les hypothèses
+Phase 3 — Investigate
+  → Trace the data flow, git log, grep, eliminate hypotheses
 
-Phase 4 — Rapport
-  → Root cause confirmée + localisation précise + direction de fix
+Phase 4 — Report
+  → Confirmed root cause + precise location + fix direction
 ```
 
-**Format de sortie** :
+**Output format**:
 
 ```
 ## Debug Report — <description>
 
 ### Symptom
 ### Root Cause
-Location: fichier:ligne
+Location: file:line
 ### Evidence
 ### Eliminated hypotheses
 ### Fix direction
 Estimated complexity: XS / S / M / L
 ```
 
-**Important** : le debugger ne code pas le fix. Il passe le relais à `build` ou à l'orchestrateur.
+**Important**: the debugger does not code the fix. It hands off to `build` or the orchestrator.
 
 ---
 
 ### 5.6 Tester — subagent
 
-| Propriété | Valeur |
+| Property | Value |
 |---|---|
 | Mode | `subagent` |
-| Couleur | Vert `#16a34a` |
-| Accès fichiers | **Complet** — `edit: allow` |
-| Bash | `git diff/branch`, `grep`, `ls` · reste `allow` |
+| Color | Green `#16a34a` |
+| File access | **Full** — `edit: allow` |
+| Bash | `git diff/branch`, `grep`, `ls` · rest `allow` |
 
-**Rôle** : analyse la couverture existante et génère les tests manquants. Respecte les conventions de test du projet. Lance les tests à la fin — ils doivent passer.
+**Role**: analyzes existing coverage and generates missing tests. Follows the project's test conventions. Runs the tests at the end — they must pass.
 
-**Priorités** :
-1. Chemins critiques (happy path)
-2. Cas d'erreur (input invalide, données manquantes)
-3. Edge cases (valeurs limites, null/undefined, appels concurrents)
-4. Points d'intégration (interactions entre modules)
+**Priorities**:
+1. Critical paths (happy path)
+2. Error cases (invalid input, missing data)
+3. Edge cases (boundary values, null/undefined, concurrent calls)
+4. Integration points (interactions between modules)
 
-**Quality gate** : exécute la commande `test` de `AGENTS.md` après avoir écrit les tests. Tous doivent passer avant de rendre la main.
+**Quality gate**: runs the `test` command from `AGENTS.md` after writing tests. All must pass before handing back.
 
-**Format de sortie** :
+**Output format**:
 
 ```
 ## Tests written — <scope>
 
 ### Coverage added
-- <fichier> — N tests (liste des scénarios)
+- <file> — N tests (list of scenarios)
 
 ### Edge cases covered
 ### Not covered (out of scope / needs more context)
@@ -410,96 +411,96 @@ test: ✓ (N passing)
 
 ### 5.7 Refactorer — subagent
 
-| Propriété | Valeur |
+| Property | Value |
 |---|---|
 | Mode | `subagent` |
-| Couleur | Orange `#ea580c` |
-| Accès fichiers | **Complet** — `edit: allow` |
-| Bash | `git diff/branch`, `grep`, `ls` · reste `allow` |
+| Color | Orange `#ea580c` |
+| File access | **Full** — `edit: allow` |
+| Bash | `git diff/branch`, `grep`, `ls` · rest `allow` |
 
-**Rôle** : améliore la structure interne du code sans changer son comportement observable. Propose un plan avant d'agir.
+**Role**: improves the internal structure of code without changing its observable behavior. Proposes a plan before acting.
 
-**Règle absolue** : si les tests échouent après un refactoring, c'est une régression — le refactoring a changé le comportement. Stopper et corriger.
+**Absolute rule**: if tests fail after a refactoring, it's a regression — the refactoring changed behavior. Stop and fix.
 
-**Process** :
+**Process**:
 
 ```
-1. Lire le code en entier
-2. Proposer un plan (problèmes identifiés, changements proposés, risques)
-3. Attendre approbation (implicite si invoqué par orchestrateur avec tâche claire)
-4. Refactorer de façon incrémentale
-5. Quality gate complet : format → lint → typecheck → test → build
+1. Read the code in full
+2. Propose a plan (issues identified, proposed changes, risks)
+3. Wait for approval (implicit if invoked by orchestrator with a clear task)
+4. Refactor incrementally
+5. Full quality gate: format → lint → typecheck → test → build
 ```
 
-**Opérations autorisées** :
-- Extraction de fonctions/constantes/types
-- Renommage pour plus d'expressivité
-- Simplification (aplatir les conditions imbriquées)
-- Consolidation (supprimer le code mort, merger la logique dupliquée)
-- Séparation (découper les fichiers/modules trop larges)
+**Allowed operations**:
+- Extracting functions/constants/types
+- Renaming for expressiveness
+- Simplification (flatten nested conditions)
+- Consolidation (remove dead code, merge duplicated logic)
+- Separation (split files/modules that have too many responsibilities)
 
-**Opérations interdites** :
-- Changer la logique métier
-- Introduire de nouvelles dépendances
-- Modifier des APIs publiques sans le signaler explicitement
+**Forbidden operations**:
+- Changing business logic
+- Introducing new dependencies
+- Modifying public APIs without flagging it explicitly
 
 ---
 
 ### 5.8 Docs-writer — subagent
 
-| Propriété | Valeur |
+| Property | Value |
 |---|---|
 | Mode | `subagent` |
-| Couleur | Bleu foncé `#0369a1` |
-| Accès fichiers | **Complet** — `edit: allow` |
-| Bash | `ls`, `git log`, `grep` uniquement — pas d'exécution |
+| Color | Dark blue `#0369a1` |
+| File access | **Full** — `edit: allow` |
+| Bash | `ls`, `git log`, `grep` only — no execution |
 
-**Rôle** : rédige et maintient la documentation technique. S'adapte au style existant dans le projet.
+**Role**: writes and maintains technical documentation. Adapts to the existing style in the project.
 
-**Types de documentation produits** :
+**Types of documentation produced**:
 
-| Type | Détail |
+| Type | Detail |
 |---|---|
 | JSDoc / TSDoc | `@param`, `@returns`, `@throws`, `@example` |
-| Commentaires inline | Uniquement le *pourquoi*, jamais le *quoi* |
-| README | Sections structurées, exemples de code fonctionnels |
-| ADR | Architecture Decision Records au format standard |
-| API docs | Endpoints, request/response, exemples curl |
+| Inline comments | Only the *why*, never the *what* |
+| README | Structured sections, working code examples |
+| ADR | Architecture Decision Records in standard format |
+| API docs | Endpoints, request/response, curl examples |
 
-**Principe fondamental** : l'exactitude prime sur l'exhaustivité. Une documentation fausse est pire qu'une documentation absente.
+**Core principle**: accuracy over completeness. Wrong documentation is worse than no documentation.
 
 ---
 
 ### 5.9 Performance — subagent
 
-| Propriété | Valeur |
+| Property | Value |
 |---|---|
 | Mode | `subagent` |
-| Couleur | Ambre `#b45309` |
-| Accès fichiers | **Aucun** — `edit: deny` |
-| Bash | `ls`, `grep`, `git diff`, `cat`, `find` · aucune autre (`deny`) |
+| Color | Amber `#b45309` |
+| File access | **None** — `edit: deny` |
+| Bash | `ls`, `grep`, `git diff`, `cat`, `find` · nothing else (`deny`) |
 
-**Rôle** : audit de performance. Identifie les bottlenecks, retourne un rapport priorisé par impact utilisateur.
+**Role**: performance audit. Identifies bottlenecks and returns a report prioritized by user impact.
 
-**Domaines couverts** :
+**Areas covered**:
 
-*Backend / API* : requêtes N+1, indexes manquants, fetch excessif, opérations bloquantes, cache absent, payload surdimensionné.
+*Backend / API*: N+1 queries, missing indexes, excessive fetching, blocking operations, missing cache, oversized payloads.
 
-*Frontend* : re-renders inutiles, memoization manquante, bundle size, requêtes en cascade au lieu de parallèles, fuites mémoire.
+*Frontend*: unnecessary re-renders, missing memoization, bundle size, waterfall requests instead of parallel, memory leaks.
 
-*Algorithmes* : complexité O(n²) ou pire, mauvaise structure de données, passes multiples inutiles sur les mêmes données.
+*Algorithms*: O(n²) complexity or worse, wrong data structure, unnecessary multiple passes over the same data.
 
-**Format de sortie** :
+**Output format**:
 
 ```
 ## Performance Audit — <scope>
 
-### Critical  (impact utilisateur significatif)
-- [fichier:ligne] Problème + Impact + Fix
+### Critical  (significant user impact)
+- [file:line] Issue + Impact + Fix
 
-### High      (impact notable à l'échelle)
-### Medium    (gains mineurs)
-### Out of scope (nécessite des données de profiling réelles)
+### High      (noticeable impact at scale)
+### Medium    (minor gains)
+### Out of scope (requires real profiling data)
 
 ### Summary
 ```
@@ -508,257 +509,306 @@ test: ✓ (N passing)
 
 ### 5.10 Security — subagent
 
-| Propriété | Valeur |
+| Property | Value |
 |---|---|
 | Mode | `subagent` |
-| Couleur | Rouge sombre `#991b1b` |
-| Accès fichiers | **Aucun** — `edit: deny` |
-| Bash | `grep`, `ls`, `cat`, `find` uniquement (read-only) |
+| Color | Dark red `#991b1b` |
+| File access | **None** — `edit: deny` |
+| Bash | `grep`, `ls`, `cat`, `find` only (read-only) |
 
-**Rôle** : audit de sécurité basé sur l'OWASP Top 10. Retourne un rapport avec niveau de sévérité.
+**Role**: security audit based on OWASP Top 10. Returns a severity-ranked report.
 
-**Catégories analysées** :
+**Categories analyzed**:
 
-| Catégorie | OWASP | Exemples |
+| Category | OWASP | Examples |
 |---|---|---|
 | Injection | A03 | SQL injection, command injection, NoSQL |
-| Auth & Authz | A01, A07 | Auth manquante, RBAC cassé, JWT faible |
-| Data Exposure | A02 | Secrets hardcodés, PII dans les logs, pas de chiffrement |
-| Misconfiguration | A05 | CORS wildcard, headers permissifs, debug en prod |
-| Dépendances | A06 | Packages avec CVE connus, versions critiques obsolètes |
-| Patterns dangereux | — | `eval()`, `innerHTML`, path traversal, ReDoS, race conditions |
+| Auth & Authz | A01, A07 | Missing auth, broken RBAC, weak JWT |
+| Data Exposure | A02 | Hardcoded secrets, PII in logs, no encryption |
+| Misconfiguration | A05 | CORS wildcard, permissive headers, debug in prod |
+| Dependencies | A06 | Packages with known CVEs, outdated critical versions |
+| Dangerous patterns | — | `eval()`, `innerHTML`, path traversal, ReDoS, race conditions |
 
-**Niveaux de sévérité** : Critical → High → Medium → Low → Info
+**Severity levels**: Critical → High → Medium → Low → Info
 
-**Important** : rapporte uniquement ce qui est constaté dans le code. Ne construit pas de chaînes d'attaque hypothétiques.
+**Important**: reports only what is found in the code. Does not construct hypothetical attack chains.
 
 ---
 
 ### 5.11 Git-publisher — subagent
 
-| Propriété | Valeur |
+| Property | Value |
 |---|---|
 | Mode | `subagent` |
-| Couleur | Indigo `#4f46e5` |
-| Accès fichiers | **Aucun** — `edit: deny` |
+| Color | Indigo `#4f46e5` |
+| File access | **None** — `edit: deny` |
 | Bash | Git read + `git add/commit/push`, `glab mr`, `gh pr` |
 
-**Rôle** : rédige les messages de commit (conventional commits) et les descriptions de MR/PR, puis exécute le flow complet de publication.
+**Role**: writes commit messages (conventional commits) and MR/PR descriptions, then executes the full publish flow.
 
-**Workflow** :
+**Workflow**:
 
 ```
-1. git status + git diff --staged (ou main...HEAD)
-2. Détection de la plateforme via git remote get-url origin
+1. git status + git diff --staged (or main...HEAD)
+2. Platform detection via git remote get-url origin
    → github.com → gh
-   → autre       → glab
-3. Rédaction du message de commit (conventional commits)
-4. Commit direct si le diff est clair — sinon demande confirmation
-5. git push (avec -u origin <branch> si pas d'upstream)
-6. Propose de créer la MR/PR — si oui, rédige et crée
+   → other       → glab
+3. Write the commit message (conventional commits)
+4. Commit directly if the diff is clear — otherwise asks for confirmation
+5. git push (with -u origin <branch> if no upstream)
+6. Offers to create the MR/PR — if yes, writes and creates
 ```
 
-**Invocation** : `@git-publisher` ou automatiquement par l'orchestrateur après une tâche.
+**Invocation**: `@git-publisher` or automatically by the orchestrator after a task.
 
 ---
 
-## 6. Règles globales
+## 6. Global rules
 
-Les règles sont des fichiers markdown avec `alwaysApply: true` dans leur frontmatter. Elles sont injectées dans le contexte de **tous** les agents via le champ `instructions` de `opencode.json`. Elles s'appliquent donc au `build`, à l'orchestrateur, et à chaque subagent.
+Rules are markdown files with `alwaysApply: true` in their frontmatter. They are injected into the context of **all** agents via the `instructions` field of `opencode.json`. They therefore apply to `build`, the orchestrator, and every subagent.
 
 ### 6.1 git-safety
 
-**Fichier** : `.opencode/rules/git-safety.md`
+**File**: `.opencode/rules/git-safety.md`
 
-#### Règle fondamentale
+#### Core rule
 
-> Ne JAMAIS commiter, pusher, ni effectuer de changements de code directement sur `main`.
+> NEVER commit, push, or make code changes directly on `main`.
 
-#### Arbre de décision (exécuté avant tout changement de code)
+#### Decision tree (executed before any code change)
 
 ```
 git branch --show-current
         │
         ▼
-  Branche = main ?
-  ┌─ OUI ──────────────────────────────────────────────────────┐
-  │  STOP. Avertir l'utilisateur.                              │
-  │  "Je ne travaille pas directement sur main."               │
-  │  Proposer de créer une branche avant de continuer.         │
-  │  Ne rien modifier tant qu'on est sur main.                 │
+  Branch = main?
+  ┌─ YES ──────────────────────────────────────────────────────┐
+  │  STOP. Warn the user.                                      │
+  │  "I don't work directly on main."                         │
+  │  Suggest creating a branch before continuing.              │
+  │  Do not modify anything while on main.                     │
   └────────────────────────────────────────────────────────────┘
         │
-  Branche ≠ main
+  Branch ≠ main
         │
-        ├─ Fix / amélioration liée à la branche actuelle ?
-        │   └─ Rester sur la branche actuelle.
+        ├─ Fix / improvement related to the current branch?
+        │   └─ Stay on the current branch.
         │
-        ├─ Nouvelle feature dépendant de la branche actuelle ?
-        │   └─ git checkout -b <nom>
-        │       (fork depuis la branche actuelle)
+        ├─ New feature depending on the current branch?
+        │   └─ git checkout -b <name>
+        │       (fork from the current branch)
         │
-        └─ Nouvelle feature indépendante ?
+        └─ New independent feature?
             └─ git fetch origin
                git checkout main && git pull
-               git checkout -b <nom>
-               (fork depuis main à jour)
+               git checkout -b <name>
+               (fork from up-to-date main)
 ```
 
-#### Cas de doute
+#### Ambiguous cases
 
-Si l'intention est ambiguë (tâche liée **ou** indépendante), l'agent demande **avant** de créer quoi que ce soit :
+If the intent is ambiguous (task related **or** independent), the agent asks **before** creating anything:
 
-> "Cette tâche est-elle liée à `feat/auth` ou indépendante de cette branche ?
-> Je propose `feature/notifications` — ça te convient ?"
+> "Is this task related to `feat/auth` or independent from that branch?
+> I suggest `feature/notifications` — does that work?"
 
-#### Nommage des branches
+#### Branch naming
 
-| Préfixe | Usage |
+| Prefix | Usage |
 |---|---|
-| `feature/` | Nouvelle fonctionnalité |
-| `fix/` | Correction de bug |
+| `feature/` | New feature |
+| `fix/` | Bug fix |
 | `refactor/` | Refactoring |
 | `docs/` | Documentation |
-| `test/` | Ajout de tests |
-| `perf/` | Optimisation de performance |
+| `test/` | Adding tests |
+| `perf/` | Performance optimization |
 
-Noms en **kebab-case**, courts et descriptifs.
+Names in **kebab-case**, short and descriptive.
 
 #### Commits
 
-- Format **Conventional Commits** : `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`
-- Jamais de `git push --force` sur une branche partagée sans confirmation explicite
-- Préférer le rebase au merge pour intégrer `main` dans une feature branch
+- **Conventional Commits** format: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`
+- Never `git push --force` on a shared branch without explicit confirmation
+- Prefer rebase over merge to integrate `main` into a feature branch
 
 ---
 
 ### 6.2 code-quality
 
-**Fichier** : `.opencode/rules/code-quality.md`
+**File**: `.opencode/rules/code-quality.md`
 
-#### Règle fondamentale
+#### Core rule
 
-> Après TOUT changement de code, tous les checks qualité définis dans `AGENTS.md` doivent passer avant de déclarer la tâche terminée.
+> After ANY code change, all quality checks defined in `AGENTS.md` must pass before declaring the task done.
 
-#### Procédure
+#### Procedure
 
 ```
-1. Lire ## Quality Checks dans AGENTS.md
-   └─ Si section absente → signaler à l'utilisateur et demander les commandes
+1. Read ## Quality Checks in AGENTS.md
+   └─ If section missing → warn the user and ask for the commands
 
-2. Exécuter dans l'ordre :
-   format    → formatter le code (peut modifier des fichiers)
-   lint      → vérifier les règles statiques
-   typecheck → vérifier les types
-   test      → exécuter les tests
-   build     → vérifier la compilation / le bundle
+2. Run in order:
+   format    → format the code (may modify files)
+   lint      → check static rules
+   typecheck → check types
+   test      → run tests
+   build     → verify compilation / bundle
 
-3. En cas d'échec :
-   └─ Analyser l'erreur
-   └─ Corriger
-   └─ Re-exécuter la commande concernée
-   └─ Recommencer jusqu'à passage complet
+3. On failure:
+   └─ Analyze the error
+   └─ Fix
+   └─ Re-run the affected command
+   └─ Repeat until all pass
 
-4. Si l'échec préexistait avant les changements :
-   └─ Signaler : "Ce check échouait déjà avant mes changements : <erreur>"
-   └─ Proposer de corriger ou d'ignorer selon le contexte
+4. If the failure pre-existed before the changes:
+   └─ Report: "This check was already failing before my changes: <error>"
+   └─ Offer to fix or ignore depending on context
 
-5. Confirmer une fois tout passé :
-   "Tous les checks qualité passent : format ✓ lint ✓ typecheck ✓ test ✓ build ✓"
+5. Confirm once everything passes:
+   "All quality checks pass: format ✓ lint ✓ typecheck ✓ test ✓ build ✓"
 ```
 
-#### Agents soumis au quality gate
+#### Agents subject to the quality gate
 
-| Agent | Gate qualité | Raison |
+| Agent | Quality gate | Reason |
 |---|---|---|
-| `build` | Oui | Après chaque changement de code |
-| `tester` | Oui | Les tests générés doivent eux-mêmes passer |
-| `refactorer` | Oui | Critique — toute régression est un bug |
-| `orchestrator` | Oui | Gate final après tous les subagents |
-| `reviewer` | Non | Read-only, aucun changement de code |
-| `debugger` | Non | Read-only, aucun changement de code |
-| `docs-writer` | Non | Documentation uniquement |
-| `performance` | Non | Audit uniquement |
-| `security` | Non | Audit uniquement |
+| `build` | Yes | After each code change |
+| `tester` | Yes | Generated tests must themselves pass |
+| `refactorer` | Yes | Critical — any regression is a bug |
+| `orchestrator` | Yes | Final gate after all subagents |
+| `reviewer` | No | Read-only, no code changes |
+| `debugger` | No | Read-only, no code changes |
+| `docs-writer` | No | Documentation only |
+| `performance` | No | Audit only |
+| `security` | No | Audit only |
 
 ---
 
-## 7. Commandes personnalisées
+## 7. Custom commands
 
-Les commandes sont des fichiers markdown dans `.opencode/commands/`. Elles s'invoquent avec `/` dans le TUI et acceptent des arguments positionnels (`$1`, `$2`, …) ou `$ARGUMENTS` pour tout récupérer.
+Commands are markdown files in `.opencode/commands/`. They are invoked with `/` in the TUI and accept positional arguments (`$1`, `$2`, …) or `$ARGUMENTS` to capture everything.
 
-Le répertoire `commands/` est **symlinkée** depuis le template — ajouter une commande ici la déploie automatiquement dans tous les projets installés.
+The `commands/` directory is **symlinked** from the template — adding a command here deploys it automatically to all installed projects.
 
 ---
 
 ### 7.1 /ticket
 
-**Fichier :** `.opencode/commands/ticket.md`
+**File:** `.opencode/commands/ticket.md`
 
-**Usage :**
+**Usage:**
 ```
-/ticket <id> [contexte additionnel]
+/ticket <id> [additional context]
 ```
 
-**Exemples :**
+**Examples:**
 ```
 /ticket 42
-/ticket 87 focus sur le module de paiement
-/ticket PROJ-123 ne pas toucher à l'API publique
+/ticket 87 focus on the payment module
+/ticket PROJ-123 do not touch the public API
 ```
 
-**Rôle :** analyse un ticket (GitLab, GitHub ou Jira) et l'ensemble de ses sous-tickets pour produire un plan d'implémentation structuré. Ne crée pas de branche, ne modifie aucun fichier.
+**Role:** analyzes a ticket (GitLab, GitHub or Jira) and all its sub-tickets to produce a structured implementation plan. Does not create a branch or modify any files.
 
-**Trackers supportés :**
+**Supported trackers:**
 
-| Format de l'ID | Tracker détecté | Commande utilisée |
+| ID format | Detected tracker | Command used |
 |---|---|---|
-| Entier (`42`) + remote `gitlab.com` | GitLab | `glab issue view` + GraphQL |
-| Entier (`42`) + remote `github.com` | GitHub | `gh issue view` |
+| Integer (`42`) + `gitlab.com` remote | GitLab | `glab issue view` + GraphQL |
+| Integer (`42`) + `github.com` remote | GitHub | `gh issue view` |
 | `PROJ-42` | Jira | `acli jira workitem view` |
 
-**Livrable produit :**
+**Output produced:**
 
 ```
-## Plan d'implémentation — Ticket #<id> : <titre>
+## Implementation Plan — Ticket #<id>: <title>
 
-### Contexte additionnel
-### Arbre des sous-tickets      — ID, titre, état, taille estimée
-### Analyse technique           — fichiers impactés, dépendances, risques
-### Ordre d'implémentation      — séquence recommandée avec approche par sous-ticket
-### Prochaines étapes concrètes — branche à créer, par où commencer
+### Additional context
+### Sub-ticket tree      — ID, title, status, estimated size
+### Technical analysis   — impacted files, dependencies, risks
+### Implementation order — recommended sequence with approach per sub-ticket
+### Concrete next steps  — branch to create, where to start
 ```
 
-**Agent à utiliser :** choisir avant de lancer la commande.
-- `plan` — analyse pure, aucun accès bash (recommandé si `glab` est déjà configuré)
-- `build` / `orchestrator` — peut explorer le codebase dynamiquement en complément
+**Agent to use:** choose before running the command.
+- `plan` — pure analysis, no bash access (recommended if `glab` is already configured)
+- `build` / `orchestrator` — can also explore the codebase dynamically
+
+---
+
+### 7.2 /new-ticket
+
+**File:** `.opencode/commands/new-ticket.md`
+
+**Usage:**
+```
+/new-ticket <free description of the problem or feature>
+```
+
+**Examples:**
+```
+/new-ticket bug on login when email is empty
+/new-ticket add CSV export on the reports page
+/new-ticket refactor the payment module — too coupled
+```
+
+**Role:** creates a ticket in the right ticketing system with automatic pre-analysis. Displays a formatted preview before creating. Does not modify any files.
+
+**Internal workflow:**
+1. Reads `AGENTS.md` → `## Tracker` section to detect the target system
+2. Fallback: detects via `git remote get-url origin` (`github.com` → gh, gitlab → glab, otherwise → jira)
+3. Reads `## Ticket conventions` in `AGENTS.md` if present — otherwise applies defaults
+4. Silent pre-analysis: type, size, priority from the description
+5. Builds the title `[Context] Verb + object` and the structured description
+6. Displays the formatted ticket and asks for confirmation `[y/N]`
+7. Creates the ticket via the right CLI
+8. Displays the link to the created ticket
+
+**Supported trackers:**
+
+| Tracker | CLI | Detection |
+|---|---|---|
+| GitLab | `glab issue create` | `tracker: gitlab` in `AGENTS.md` or gitlab remote |
+| GitHub | `gh issue create` | `tracker: github` in `AGENTS.md` or github.com remote |
+| Jira | `acli jira workitem create` | `tracker: jira` in `AGENTS.md` or `[A-Z]+-\d+` ID |
+
+**Default conventions (if `## Ticket conventions` is absent):**
+
+| Field | Value |
+|---|---|
+| Language | English |
+| Title | `[Context] Verb + object` |
+| Labels | `type::feature\|bug\|tech\|chore` + `size::XS…XL` + `priority::critical…low` |
+| Description | Context / Task / Acceptance criteria / Notes |
+
+**Skills loaded automatically**: `glab`, `gh`, or `jira` depending on the detected tracker — the corresponding CLI skill is consulted for the exact creation command syntax.
 
 ---
 
 ### 7.3 /check-agents
 
-**Fichier :** `.opencode/commands/check-agents.md`
+**File:** `.opencode/commands/check-agents.md`
 
-**Usage :**
+**Usage:**
 ```
 /check-agents
 ```
 
-**Rôle :** audite le `AGENTS.md` du projet courant en le comparant au `AGENTS.md.template` du repo agents. Identifie les sections manquantes ou vides, infère le contenu depuis le codebase, et propose les ajouts — avec confirmation avant d'écrire quoi que ce soit.
+**Role:** audits the current project's `AGENTS.md` by comparing it to the `AGENTS.md.template` from the agents repo. Identifies missing or empty sections, infers content from the codebase, and proposes additions — with confirmation before writing anything.
 
-**Workflow interne :**
-1. Localise le template via `readlink -f .opencode/` → remonte d'un niveau
-2. Parse les sections des deux fichiers et classe chacune :
-   - `✓ OK` — présente et remplie
-   - `~ Empty` — présente mais vide ou contient uniquement des commentaires/placeholders
-   - `✗ Missing` — absente de `AGENTS.md`
-   - `→ Project-specific` — présente dans le projet mais pas dans le template (listée en info, non modifiée)
-3. Explore le codebase pour inférer le contenu des sections problématiques (`package.json`, `Makefile`, `go.mod`, git remote, etc.)
-4. **Tracker en interactif** : tente la détection via `git remote get-url origin`, demande toujours confirmation, et si c'est incorrect pose la question directement (avec demande du project key si Jira)
-5. Affiche un rapport + preview des additions proposées
-6. Applique uniquement si confirmé — sans jamais écraser le contenu existant
+**Internal workflow:**
+1. Locates the template via `readlink -f .opencode/` → goes up one level
+2. Parses sections from both files and classifies each:
+   - `✓ OK` — present and filled
+   - `~ Empty` — present but empty or contains only comments/placeholders
+   - `✗ Missing` — absent from `AGENTS.md`
+   - `→ Project-specific` — present in the project but not in the template (listed as info, not modified)
+3. Explores the codebase to infer content for problematic sections (`package.json`, `Makefile`, `go.mod`, git remote, etc.)
+4. **Interactive tracker detection**: attempts detection via `git remote get-url origin`, always asks for confirmation, and if incorrect asks directly (including the project key if Jira)
+5. Displays a report + preview of proposed additions
+6. Applies only if confirmed — never overwrites existing content
 
-**Exemple de rapport :**
+**Example report:**
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -785,66 +835,17 @@ Apply these additions to AGENTS.md? [y/N]
 
 ---
 
-### 7.2 /new-ticket
-
-**Fichier :** `.opencode/commands/new-ticket.md`
-
-**Usage :**
-```
-/new-ticket <description libre du problème ou de la feature>
-```
-
-**Exemples :**
-```
-/new-ticket bug sur le login quand l'email est vide
-/new-ticket ajouter l'export CSV sur la page des rapports
-/new-ticket refactorer le module de paiement — trop couplé
-```
-
-**Rôle :** crée un ticket dans le bon système de tickets avec pré-analyse automatique. Affiche un aperçu formaté avant de créer. Ne modifie aucun fichier.
-
-**Workflow interne :**
-1. Lit `AGENTS.md` → section `## Tracker` pour détecter le système cible
-2. Fallback : détecte via `git remote get-url origin` (`github.com` → gh, gitlab → glab, sinon → jira)
-3. Lit `## Ticket conventions` dans `AGENTS.md` si elle existe — sinon applique les défauts
-4. Pré-analyse silencieuse : type, size, priority depuis la description
-5. Construit le titre `[Contexte] Verbe + objet` et la description structurée
-6. Affiche le ticket formaté et demande confirmation `[y/N]`
-7. Crée le ticket via le bon CLI
-8. Affiche le lien vers le ticket créé
-
-**Trackers supportés :**
-
-| Tracker | CLI | Détection |
-|---|---|---|
-| GitLab | `glab issue create` | `tracker: gitlab` dans `AGENTS.md` ou remote gitlab |
-| GitHub | `gh issue create` | `tracker: github` dans `AGENTS.md` ou remote github.com |
-| Jira | `acli jira workitem create` | `tracker: jira` dans `AGENTS.md` ou ID `[A-Z]+-\d+` |
-
-**Conventions par défaut (si `## Ticket conventions` absent) :**
-
-| Champ | Valeur |
-|---|---|
-| Langue | Anglais |
-| Titre | `[Context] Verb + object` |
-| Labels | `type::feature\|bug\|tech\|chore` + `size::XS…XL` + `priority::critical…low` |
-| Description | Context / Task / Acceptance criteria / Notes |
-
-**Skills chargés automatiquement** : `glab`, `gh`, ou `jira` selon le tracker détecté — le skill CLI correspondant est consulté pour la syntaxe exacte de la commande de création.
-
----
-
-## 8. Configuration par projet
+## 8. Per-project configuration
 
 ### `opencode.json`
 
-Copié dans chaque projet par `agents-setup`. À customiser selon le projet.
+Copied into each project by `agents-setup`. Customize it per project.
 
 ```jsonc
 {
   "$schema": "https://opencode.ai/config.json",
 
-  // Règles globales injectées dans tous les agents
+  // Global rules injected into all agents
   "instructions": [
     ".opencode/rules/git-safety.md",
     ".opencode/rules/code-quality.md"
@@ -854,8 +855,8 @@ Copié dans chaque projet par `agents-setup`. À customiser selon le projet.
     "build": {
       "permission": {
         "bash": {
-          "*": "ask",                // toutes les commandes bash → confirmation
-          "git status*": "allow",   // lecture git → silencieux
+          "*": "ask",                // all bash commands → confirmation
+          "git status*": "allow",   // git read → silent
           "git diff*": "allow",
           "git log*": "allow",
           "git branch*": "allow",
@@ -867,25 +868,25 @@ Copié dans chaque projet par `agents-setup`. À customiser selon le projet.
     },
     "plan": {
       "permission": {
-        "edit": "deny",   // aucune modification de fichier
-        "bash": "deny"    // aucune commande shell
+        "edit": "deny",   // no file modification
+        "bash": "deny"    // no shell commands
       }
     }
   }
 }
 ```
 
-**Customisations utiles** :
+**Useful customizations**:
 
 ```jsonc
-// Utiliser un modèle spécifique pour un agent
+// Use a specific model for an agent
 "agent": {
   "orchestrator": {
     "model": "anthropic/claude-opus-4-5"
   }
 }
 
-// Autoriser automatiquement les commandes de test pour ce projet
+// Automatically allow test commands for this project
 "agent": {
   "build": {
     "permission": {
@@ -897,7 +898,7 @@ Copié dans chaque projet par `agents-setup`. À customiser selon le projet.
   }
 }
 
-// Désactiver un agent non pertinent pour ce projet
+// Disable an agent not relevant for this project
 "agent": {
   "security": {
     "disable": true
@@ -909,27 +910,27 @@ Copié dans chaque projet par `agents-setup`. À customiser selon le projet.
 
 ### `AGENTS.md`
 
-Copié depuis `AGENTS.md.template`. C'est le fichier le plus important à remplir — les agents le lisent systématiquement pour comprendre le projet et récupérer les commandes qualité.
+Copied from `AGENTS.md.template`. This is the most important file to fill in — agents read it systematically to understand the project and retrieve quality commands.
 
-**Structure** :
+**Structure**:
 
 ```markdown
-# Nom du projet
+# Project name
 
 ## Stack
 NestJS + TypeScript / Nuxt 3 + Vue / etc.
 
 ## Structure
-- src/modules/  — modules fonctionnels
-- src/common/   — utilitaires partagés
-- tests/        — tests (miroir de src/)
+- src/modules/  — feature modules
+- src/common/   — shared utilities
+- tests/        — tests (mirror of src/)
 
 ## Commands
 - dev: npm run dev
 - install: npm install
 
 ## Quality Checks
-<!-- OBLIGATOIRE — tous les agents qui modifient du code exécutent ces commandes -->
+<!-- REQUIRED — all agents that modify code run these commands -->
 - test: npm test
 - lint: npm run lint
 - format: npm run format
@@ -937,13 +938,13 @@ NestJS + TypeScript / Nuxt 3 + Vue / etc.
 - build: npm run build
 
 ## Tracker
-<!-- Système de tickets utilisé dans ce projet -->
-<!-- Valeurs : gitlab | github | jira -->
+<!-- Ticketing system used in this project -->
+<!-- Values: gitlab | github | jira -->
 tracker: gitlab
 
 ## Ticket conventions
-<!-- Optionnel — si absent, /new-ticket utilise les défauts (anglais, [Context] Verb+object, labels type/size/priority) -->
-<!-- Exemple :
+<!-- Optional — if absent, /new-ticket uses defaults (English, [Context] Verb+object, type/size/priority labels) -->
+<!-- Example:
 - Language: French
 - Title format: feat(scope): description
 - Labels: none
@@ -951,165 +952,165 @@ tracker: gitlab
 -->
 
 ## Conventions
-- Named exports uniquement, pas de default export
-- DTOs validés avec class-validator
-- Conventional commits : feat/fix/chore/refactor/test/docs
+- Named exports only, no default export
+- DTOs validated with class-validator
+- Conventional commits: feat/fix/chore/refactor/test/docs
 - ...
 
 ## Notes
-- La migration DB se lance avec : npm run migrate
+- Run DB migrations with: npm run migrate
 - ...
 ```
 
-> La section `## Quality Checks` est **obligatoire**. Si elle est absente, les agents le signalent et demandent de la remplir avant de continuer.
+> The `## Quality Checks` section is **required**. If absent, agents report it and ask to fill it in before continuing.
 
 ---
 
-## 9. Exemples de flux complets
+## 9. Complete workflow examples
 
-### Exemple 1 — Nouvelle feature indépendante
+### Example 1 — New independent feature
 
-**Contexte** : tu es sur `feat/auth`, tu veux ajouter un système de notifications.
+**Context**: you are on `feat/auth`, you want to add a notifications system.
 
 ```
-Toi → @orchestrateur "Implémente un système de notifications push"
+You → @orchestrator "Implement a push notification system"
 
-Orchestrateur :
+Orchestrator:
   1. git branch --show-current → feat/auth
-  2. "Notifications est-il lié à feat/auth ou indépendant ?"
-     → Tu réponds : "Indépendant"
+  2. "Is notifications related to feat/auth or independent?"
+     → You answer: "Independent"
   3. git fetch origin && git checkout main && git pull
      git checkout -b feature/push-notifications
-  4. Tâche = implémentation → délègue à build directement
-     (ou gère en direct selon la complexité)
-  5. Quality gate : format ✓ lint ✓ typecheck ✓ test ✓ build ✓
-  6. Synthèse : "Feature implémentée sur feature/push-notifications"
+  4. Task = implementation → delegates to build directly
+     (or handles directly depending on complexity)
+  5. Quality gate: format ✓ lint ✓ typecheck ✓ test ✓ build ✓
+  6. Synthesis: "Feature implemented on feature/push-notifications"
 ```
 
 ---
 
-### Exemple 2 — Bug + investigation + correction
+### Example 2 — Bug + investigation + fix
 
-**Contexte** : les emails de confirmation ne partent pas.
+**Context**: confirmation emails are not being sent.
 
 ```
-Toi → @orchestrateur "Les emails de confirmation ne sont pas envoyés"
+You → @orchestrator "Confirmation emails are not being sent"
 
-Orchestrateur :
+Orchestrator:
   1. git branch --show-current → feature/user-onboarding  ✓
-  2. Tâche = bug → invoquer @debugger en premier
+  2. Task = bug → invoke @debugger first
 
-  @debugger :
-    Phase 1 : symptôme documenté
-    Phase 2 : 3 hypothèses (queue bloquée, config SMTP, template manquant)
-    Phase 3 : git log → grep du service mail → traçage du flux
-    Phase 4 : Root cause = variable d'env SMTP_HOST absente en staging
-    → Rapport remis à l'orchestrateur
+  @debugger:
+    Phase 1: symptom documented
+    Phase 2: 3 hypotheses (blocked queue, SMTP config, missing template)
+    Phase 3: git log → grep the mail service → trace the flow
+    Phase 4: Root cause = SMTP_HOST env variable missing in staging
+    → Report handed back to orchestrator
 
-  Orchestrateur :
-    → Correction ciblée via build (ajout de la config + guard au démarrage)
-    → Quality gate complet
-    → Synthèse : root cause + fix appliqué + checks ✓
+  Orchestrator:
+    → Targeted fix via build (add the config + startup guard)
+    → Full quality gate
+    → Synthesis: root cause + fix applied + checks ✓
 ```
 
 ---
 
-### Exemple 3 — Revue de code + audit sécurité en parallèle
+### Example 3 — Code review + security audit in parallel
 
-**Contexte** : tu viens de finir un module de paiement.
+**Context**: you just finished a payment module.
 
 ```
-Toi → @orchestrateur "Revue complète du module payment avant merge"
+You → @orchestrator "Full review of the payment module before merge"
 
-Orchestrateur :
+Orchestrator:
   1. git branch --show-current → feature/payment  ✓
-  2. Tâches = review + sécu → indépendantes → lancement en parallèle
+  2. Tasks = review + security → independent → launch in parallel
 
-  En parallèle :
-    @reviewer  → analyse src/modules/payment/
+  In parallel:
+    @reviewer  → analyze src/modules/payment/
     @security  → audit src/modules/payment/
 
-  Résultats :
-    reviewer  → 2 Critical, 4 Warning (ex: montant non validé côté serveur)
-    security  → 1 High (secret Stripe dans le code), 2 Medium
+  Results:
+    reviewer  → 2 Critical, 4 Warning (e.g.: amount not validated server-side)
+    security  → 1 High (Stripe secret in code), 2 Medium
 
-  Orchestrateur :
-    → Synthèse consolidée des deux rapports
-    → Priorisé : Critical et High d'abord
-    → Pas de quality gate (aucun fichier modifié par ces agents)
+  Orchestrator:
+    → Consolidated synthesis of both reports
+    → Prioritized: Critical and High first
+    → No quality gate (no files modified by these agents)
 ```
 
 ---
 
-### Exemple 4 — Refactoring d'un module
+### Example 4 — Module refactoring
 
-**Contexte** : le service `UserService` fait 600 lignes.
+**Context**: the `UserService` is 600 lines long.
 
 ```
-Toi → @orchestrateur "Refactore UserService, il est trop gros"
+You → @orchestrator "Refactor UserService, it's too large"
 
-Orchestrateur :
+Orchestrator:
   1. git branch --show-current → feat/user-improvements  ✓
-  2. Tâche liée à la branche → rester dessus
-  3. Invoquer @refactorer
+  2. Task related to current branch → stay on it
+  3. Invoke @refactorer
 
-  @refactorer :
-    Step 1 : Lire UserService en entier
-    Step 2 : Plan proposé
-      - Extraire AuthUserService (logique d'auth)
-      - Extraire UserQueryService (logique de lecture)
-      - Renommer des méthodes ambiguës
-      - Risque : Medium (interfaces publiques changent)
-    → Attente approbation
+  @refactorer:
+    Step 1: Read UserService in full
+    Step 2: Proposed plan
+      - Extract AuthUserService (auth logic)
+      - Extract UserQueryService (read logic)
+      - Rename ambiguous methods
+      - Risk: Medium (public interfaces change)
+    → Waiting for approval
 
-  Toi → "Go"
+  You → "Go"
 
-  @refactorer :
-    Step 3 : Refactoring incrémental
-    Step 4 : format ✓ lint ✓ typecheck ✓ test ✓ build ✓
+  @refactorer:
+    Step 3: Incremental refactoring
+    Step 4: format ✓ lint ✓ typecheck ✓ test ✓ build ✓
 
-  Orchestrateur :
-    → Quality gate final (déjà passé par refactorer, vérifie quand même)
-    → Synthèse : 3 fichiers créés, 1 fichier supprimé, tous les checks ✓
+  Orchestrator:
+    → Final quality gate (already passed by refactorer, verifies anyway)
+    → Synthesis: 3 files created, 1 file deleted, all checks ✓
 ```
 
 ---
 
-### Exemple 5 — Tentative de travail sur `main`
+### Example 5 — Attempt to work on `main`
 
 ```
-Toi → (sur la branche main) @build "Ajoute un champ email à User"
+You → (on main branch) @build "Add an email field to User"
 
-Build :
+Build:
   1. git branch --show-current → main
   2. STOP.
-     "Je ne travaille pas directement sur main.
-     Crée une branche d'abord. Je propose : feature/user-email-field
-     Tu peux faire : git checkout -b feature/user-email-field"
+     "I don't work directly on main.
+     Create a branch first. I suggest: feature/user-email-field
+     You can run: git checkout -b feature/user-email-field"
 
-→ Aucun fichier modifié.
+→ No files modified.
 ```
 
 ---
 
-## 10. Personnalisation
+## 10. Customization
 
-### Ajouter un agent spécifique à un projet
+### Adding a project-specific agent
 
-Créer un fichier dans `.opencode/agents/` du projet (pas dans le symlink — il faut d'abord le remplacer par un vrai dossier) :
+Create a file in the project's `.opencode/agents/` (not in the symlink — you need to replace it with a real folder first):
 
 ```bash
-# Remplacer le symlink par un vrai dossier en conservant les agents globaux
-cp -r ~/dev/agents/.opencode/agents mon-projet/.opencode/agents-backup
-rm mon-projet/.opencode/agents
-cp -r ~/dev/agents/.opencode/agents mon-projet/.opencode/agents
+# Replace the symlink with a real folder while keeping the global agents
+cp -r ~/dev/agents/.opencode/agents my-project/.opencode/agents-backup
+rm my-project/.opencode/agents
+cp -r ~/dev/agents/.opencode/agents my-project/.opencode/agents
 ```
 
-Puis créer l'agent spécifique :
+Then create the specific agent:
 
 ```bash
-# Exemple : agent spécialisé pour les migrations de BDD
-cat > mon-projet/.opencode/agents/db-migrator.md << 'EOF'
+# Example: specialized agent for DB migrations
+cat > my-project/.opencode/agents/db-migrator.md << 'EOF'
 ---
 description: Database migration specialist — creates, reviews and runs database migrations safely.
 mode: subagent
@@ -1121,18 +1122,18 @@ permission:
     "npm run migrate:dry-run": allow
 ---
 
-Tu es spécialisé dans les migrations de base de données pour ce projet.
+You are specialized in database migrations for this project.
 ...
 EOF
 ```
 
-### Surcharger les permissions d'un agent built-in
+### Overriding built-in agent permissions
 
-Dans le `opencode.json` du projet :
+In the project's `opencode.json`:
 
 ```jsonc
 "agent": {
-  // Autoriser automatiquement les tests pour ce projet
+  // Automatically allow tests for this project
   "build": {
     "permission": {
       "bash": {
@@ -1146,7 +1147,7 @@ Dans le `opencode.json` du projet :
 }
 ```
 
-### Désactiver un agent
+### Disabling an agent
 
 ```jsonc
 "agent": {
@@ -1155,57 +1156,57 @@ Dans le `opencode.json` du projet :
 }
 ```
 
-### Mettre à jour tous les projets
+### Updating all projects
 
-Modifier un fichier dans `~/dev/agents/.opencode/agents/` ou `~/dev/agents/.opencode/rules/` : la mise à jour est **immédiate** dans tous les projets utilisant les symlinks. Pas besoin de réinstaller.
+Modify a file in `~/dev/agents/.opencode/agents/` or `~/dev/agents/.opencode/rules/`: the update is **immediate** in all projects using the symlinks. No need to reinstall.
 
 ---
 
-## 11. Travail en parallèle — Worktrees
+## 11. Parallel work — Worktrees
 
-OpenCode ne gère pas nativement le parallélisme de sessions. La solution est **git worktrees** : chaque feature travaille dans son propre dossier sur le disque, avec sa propre branche, et peut avoir son propre `opencode` ouvert en parallèle sans aucun conflit de fichiers.
+OpenCode does not natively manage session parallelism. The solution is **git worktrees**: each feature works in its own folder on disk, with its own branch, and can have its own `opencode` open in parallel with no file conflicts.
 
 ### Concept
 
 ```
 ~/dev/
-├── mon-projet/                       ← repo principal (main)
-├── mon-projet-feature-auth/          ← worktree feature/auth
-└── mon-projet-feature-notifications/ ← worktree feature/notifications
+├── my-project/                         ← main repo (main)
+├── my-project-feature-auth/            ← worktree feature/auth
+└── my-project-feature-notifications/   ← worktree feature/notifications
 ```
 
-Chaque dossier est indépendant sur le disque mais partage le même historique git.
+Each folder is independent on disk but shares the same git history.
 
-### `wt-new <branch> [--from <base>]` — créer un worktree
+### `wt-new <branch> [--from <base>]` — create a worktree
 
 ```bash
-# Depuis n'importe où dans le repo principal
+# From anywhere in the main repo
 wt-new feature/auth
 
-# Forker depuis une branche spécifique au lieu de main
+# Fork from a specific branch instead of main
 wt-new feature/notifications --from feature/auth
 
-# Forker depuis la branche courante (équivalent raccourci)
+# Fork from the current branch (shorthand)
 wt-new feature/sub-task --from current
 ```
 
-Ce que ça fait :
-1. Refuse de travailler sur `main`/`master`
-2. Fetch origin et crée la branche depuis `main` à jour (ou depuis `--from <base>` si spécifié)
-3. `git worktree add ../mon-projet-feature-auth feature/auth`
-4. Lance `agents-setup` dans le nouveau worktree (symlinks + opencode.json + AGENTS.md)
-5. `cd` dans le worktree (le terminal se déplace automatiquement)
-6. Lance opencode (bloquant — Ctrl-C pour quitter)
-7. Après fermeture d'opencode, le terminal est toujours dans le worktree → prêt pour `wt-done`
+What it does:
+1. Refuses to work on `main`/`master`
+2. Fetches origin and creates the branch from up-to-date `main` (or from `--from <base>` if specified)
+3. `git worktree add ../my-project-feature-auth feature/auth`
+4. Runs `agents-setup` in the new worktree (symlinks + opencode.json + AGENTS.md)
+5. `cd` into the worktree (terminal moves automatically)
+6. Launches opencode (blocking — Ctrl-C to quit)
+7. After closing opencode, the terminal is still in the worktree → ready for `wt-done`
 
-Sortie attendue :
+Expected output:
 
 ```
 Creating worktree for branch: feature/auth
-Path: /home/<user>/dev/mon-projet-feature-auth
+Path: /home/<user>/dev/my-project-feature-auth
 ──────────────────────────────────────────
   ✓ Branch 'feature/auth' created from main
-  ✓ Worktree created at /home/<user>/dev/mon-projet-feature-auth
+  ✓ Worktree created at /home/<user>/dev/my-project-feature-auth
   ✓ .opencode/agents/ → ~/dev/agents/.opencode/agents
   ✓ .opencode/rules/  → ~/dev/agents/.opencode/rules
   ✓ opencode.json copied
@@ -1217,131 +1218,131 @@ Path: /home/<user>/dev/mon-projet-feature-auth
   → Launching opencode... (Ctrl-C to exit, then run wt-done)
 ```
 
-### `wt-done` — nettoyer un worktree terminé
+### `wt-done` — clean up a finished worktree
 
 ```bash
-# Depuis l'intérieur du worktree, après que la PR est mergée
+# From inside the worktree, after the PR is merged
 wt-done
 ```
 
-Ce que ça fait :
-1. Refuse de s'exécuter depuis le repo principal
-2. Vérifie les changements non commités → demande confirmation si présents
-3. Fetch origin et vérifie si la branche est mergée dans `origin/main`
-   - **Mergée** → suppression directe sans confirmation
-   - **Pas mergée** → avertissement + confirmation explicite requise
+What it does:
+1. Refuses to run from the main repo
+2. Checks for uncommitted changes → asks for confirmation if any
+3. Fetches origin and checks if the branch is merged into `origin/main`
+   - **Merged** → deletes directly without confirmation
+   - **Not merged** → warning + explicit confirmation required
 4. `git worktree remove` + `git branch -d` + `git worktree prune`
-5. `cd` dans le repo principal (le terminal revient automatiquement)
+5. `cd` into the main repo (terminal returns automatically)
 
-### `wt-list` — voir les worktrees actifs
+### `wt-list` — view active worktrees
 
 ```bash
 wt-list
-# alias de : git worktree list
+# alias for: git worktree list
 
-/home/user/dev/mon-projet                        abc1234 [main]
-/home/user/dev/mon-projet-feature-auth           def5678 [feature/auth]
-/home/user/dev/mon-projet-feature-notifications  ghi9012 [feature/notifications]
+/home/user/dev/my-project                          abc1234 [main]
+/home/user/dev/my-project-feature-auth             def5678 [feature/auth]
+/home/user/dev/my-project-feature-notifications    ghi9012 [feature/notifications]
 ```
 
-### Flux complet — deux features en parallèle
+### Full flow — two features in parallel
 
 ```bash
-# ── Feature A : auth ──────────────────────────────────────────
-cd ~/dev/mon-projet
+# ── Feature A: auth ───────────────────────────────────────────
+cd ~/dev/my-project
 wt-new feature/auth
-# → cd automatique dans le worktree + opencode lancé
-# → Ctrl-C pour quitter opencode
-# → terminal dans ~/dev/mon-projet-feature-auth
+# → automatic cd into the worktree + opencode launched
+# → Ctrl-C to quit opencode
+# → terminal in ~/dev/my-project-feature-auth
 
-# ── Feature B : notifications (depuis un autre terminal) ──────
-cd ~/dev/mon-projet
+# ── Feature B: notifications (from another terminal) ──────────
+cd ~/dev/my-project
 wt-new feature/notifications
-# → idem, terminal dans ~/dev/mon-projet-feature-notifications
+# → same, terminal in ~/dev/my-project-feature-notifications
 
-# ── Nettoyage après merge ──────────────────────────────────────
-# (depuis le worktree feature/auth, PR mergée)
-wt-done   # → supprime worktree + branche + cd dans ~/dev/mon-projet
+# ── Cleanup after merge ────────────────────────────────────────
+# (from the feature/auth worktree, PR merged)
+wt-done   # → deletes worktree + branch + cd into ~/dev/my-project
 
-# (depuis le worktree feature/notifications)
-wt-done   # idem
+# (from the feature/notifications worktree)
+wt-done   # same
 ```
 
-### Cas particulier — fork depuis une feature en cours
+### Special case — fork from an in-progress feature
 
-Si `feature/notifications` dépend de `feature/auth` (pas encore mergée dans main) :
+If `feature/notifications` depends on `feature/auth` (not yet merged into main):
 
 ```bash
-# Option 1 — depuis n'importe où, en nommant la branche source
+# Option 1 — from anywhere, naming the source branch
 wt-new feature/notifications --from feature/auth
 
-# Option 2 — depuis le worktree de feature/auth, avec --from current
-cd ~/dev/mon-projet-feature-auth
+# Option 2 — from the feature/auth worktree, with --from current
+cd ~/dev/my-project-feature-auth
 wt-new feature/notifications --from current
 ```
 
-> `wt-new` crée la branche depuis `main` par défaut. Utiliser `--from <branche>` pour forker depuis n'importe quelle branche sans se déplacer.
+> `wt-new` creates the branch from `main` by default. Use `--from <branch>` to fork from any branch without moving.
 
 ---
 
-## 12. Référence rapide
+## 12. Quick reference
 
-### Tableau des agents
+### Agent table
 
-| Agent | Mode | Couleur | Écrit du code | Bash | Cas d'usage |
+| Agent | Mode | Color | Writes code | Bash | Use case |
 |---|---|---|---|---|---|
-| `orchestrator` | primary | Violet | Oui | Git read/write · utilitaires · uv/npm/… | Tâches composites, délégation |
-| `build` | primary | — | Oui | Git read (auto) · reste (ask) | Implémentation directe |
-| `plan` | primary | — | Non | Non | Planification, exploration |
-| `reviewer` | subagent | Bleu | Non | Git read · grep · cat · find | Revue de code |
-| `debugger` | subagent | Rouge | Non | Git read · grep · cat · find | Investigation de bugs |
-| `tester` | subagent | Vert | Oui | Git read · utilitaires · uv/npm/… | Génération de tests |
-| `refactorer` | subagent | Orange | Oui | Git read · utilitaires · uv/npm/… | Refactoring |
-| `docs-writer` | subagent | Bleu foncé | Oui (docs) | Git log/diff · ls · grep · cat · find | Documentation |
-| `performance` | subagent | Ambre | Non | ls · grep · cat · find | Audit de performances |
-| `security` | subagent | Rouge sombre | Non | grep · ls · cat · find (read-only) | Audit de sécurité |
-| `git-publisher` | subagent | Indigo | Non | Git read/add/commit/push · glab · gh | Commit + MR/PR |
+| `orchestrator` | primary | Purple | Yes | Git read/write · utilities · uv/npm/… | Composite tasks, delegation |
+| `build` | primary | — | Yes | Git read (auto) · rest (ask) | Direct implementation |
+| `plan` | primary | — | No | No | Planning, exploration |
+| `reviewer` | subagent | Blue | No | Git read · grep · cat · find | Code review |
+| `debugger` | subagent | Red | No | Git read · grep · cat · find | Bug investigation |
+| `tester` | subagent | Green | Yes | Git read · utilities · uv/npm/… | Test generation |
+| `refactorer` | subagent | Orange | Yes | Git read · utilities · uv/npm/… | Refactoring |
+| `docs-writer` | subagent | Dark blue | Yes (docs) | Git log/diff · ls · grep · cat · find | Documentation |
+| `performance` | subagent | Amber | No | ls · grep · cat · find | Performance audit |
+| `security` | subagent | Dark red | No | grep · ls · cat · find (read-only) | Security audit |
+| `git-publisher` | subagent | Indigo | No | Git read/add/commit/push · glab · gh | Commit + MR/PR |
 
-### Commandes OpenCode utiles
+### Useful OpenCode commands
 
-| Action | Commande |
+| Action | Command |
 |---|---|
-| Cycler entre agents primaires | **Tab** |
-| Invoquer un subagent | `@nom-agent message` |
-| Basculer en mode Plan | **Tab** jusqu'à "Plan" |
-| Annuler les derniers changements | `/undo` |
-| Rétablir | `/redo` |
-| Initialiser AGENTS.md | `/init` |
-| Partager une session | `/share` |
-| Lister les modèles disponibles | `opencode models` (CLI) |
+| Cycle between primary agents | **Tab** |
+| Invoke a subagent | `@agent-name message` |
+| Switch to Plan mode | **Tab** until "Plan" |
+| Undo last changes | `/undo` |
+| Redo | `/redo` |
+| Initialize AGENTS.md | `/init` |
+| Share a session | `/share` |
+| List available models | `opencode models` (CLI) |
 
-### Commandes personnalisées
+### Custom commands
 
-| Commande | Description |
+| Command | Description |
 |---|---|
-| `/ticket <id> [contexte]` | Analyse un ticket existant et ses sous-tickets, produit un plan d'implémentation |
-| `/new-ticket <description>` | Crée un ticket (GitLab/GitHub/Jira) avec pré-analyse et preview de confirmation |
-| `/check-agents` | Audite `AGENTS.md` vs le template, infère le contenu manquant, propose et applique les ajouts |
+| `/ticket <id> [context]` | Analyzes an existing ticket and its sub-tickets, produces an implementation plan |
+| `/new-ticket <description>` | Creates a ticket (GitLab/GitHub/Jira) with pre-analysis and confirmation preview |
+| `/check-agents` | Audits `AGENTS.md` vs the template, infers missing content, proposes and applies additions |
 
-### Helpers shell disponibles
+### Available shell helpers
 
-| Commande | Type | Source | Description |
+| Command | Type | Source | Description |
 |---|---|---|---|
-| `agents-setup` | alias | `setup.sh` | Installe les agents dans le projet courant |
-| `wt-new <branch> [--from <base>]` | **fonction** | `shell-functions.sh` | Crée un worktree + cd + opencode (base: `main` par défaut) |
-| `wt-done` | **fonction** | `shell-functions.sh` | Nettoie le worktree + cd vers le repo principal |
-| `wt-list` | alias | `git worktree list` | Liste tous les worktrees actifs |
+| `agents-setup` | alias | `setup.sh` | Installs agents in the current project |
+| `wt-new <branch> [--from <base>]` | **function** | `shell-functions.sh` | Creates a worktree + cd + opencode (base: `main` by default) |
+| `wt-done` | **function** | `shell-functions.sh` | Cleans up the worktree + cd to the main repo |
+| `wt-list` | alias | `git worktree list` | Lists all active worktrees |
 
-> `wt-new` et `wt-done` sont des **fonctions shell** (pas des alias) car ils doivent modifier le répertoire courant du terminal. Ils sont chargés via `source "$HOME/dev/agents/shell-functions.sh"` dans `.bashrc` et `.zshrc`.
+> `wt-new` and `wt-done` are **shell functions** (not aliases) because they need to change the terminal's current directory. They are loaded via `source "$HOME/dev/agents/shell-functions.sh"` in `.bashrc` and `.zshrc`.
 
-### Fichiers clés à modifier après `agents-setup`
+### Key files to fill in after `agents-setup`
 
-| Priorité | Fichier | Action requise |
+| Priority | File | Required action |
 |---|---|---|
-| **Obligatoire** | `AGENTS.md` | Remplir `## Quality Checks` avec les commandes du projet |
-| **Obligatoire** | `AGENTS.md` | Remplir `## Tracker` avec `tracker: gitlab\|github\|jira` |
-| Recommandé | `AGENTS.md` | Remplir Stack, Structure, Conventions |
-| Recommandé | `AGENTS.md` | Remplir `## Ticket conventions` si les défauts ne conviennent pas |
-| Optionnel | `opencode.json` | Ajuster permissions bash, ajouter modèles spécifiques |
+| **Required** | `AGENTS.md` | Fill in `## Quality Checks` with the project's commands |
+| **Required** | `AGENTS.md` | Fill in `## Tracker` with `tracker: gitlab\|github\|jira` |
+| Recommended | `AGENTS.md` | Fill in Stack, Structure, Conventions |
+| Recommended | `AGENTS.md` | Fill in `## Ticket conventions` if the defaults don't fit |
+| Optional | `opencode.json` | Adjust bash permissions, add specific models |
 
-> **Astuce** : lance `/check-agents` après `agents-setup` pour détecter automatiquement les sections vides et laisser l'agent inférer le contenu depuis le codebase.
+> **Tip**: run `/check-agents` after `agents-setup` to automatically detect empty sections and let the agent infer content from the codebase.
