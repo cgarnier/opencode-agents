@@ -89,6 +89,96 @@ acli jira sprint list-workitems --board <board-id> --sprint <sprint-id> \
 
 A string matching `[A-Z]+-\d+` (e.g. `PROJ-42`, `BUG-7`, `MYTEAM-123`) is a Jira work item key. Use it directly with `acli jira workitem view`.
 
+## ADF — Atlassian Document Format
+
+**Rule: always use ADF for Jira descriptions.** Jira does not render Markdown.
+Pass the ADF JSON via `--description-file <file>` (preferred) or inline with `--description`.
+
+### Node reference
+
+| Node | Usage | Required attrs |
+|---|---|---|
+| `heading` | Section title | `attrs.level` (1–6) |
+| `paragraph` | Plain text block | — |
+| `bulletList` > `listItem` | Unordered list | — |
+| `taskList` > `taskItem` | Checkbox item | `attrs.localId` (unique string), `attrs.state: "TODO"\|"DONE"` |
+| `text` | Leaf text content | `text` |
+
+### Template — Context / Task / Acceptance criteria / Notes
+
+```json
+{
+  "version": 1,
+  "type": "doc",
+  "content": [
+    {
+      "type": "heading",
+      "attrs": { "level": 2 },
+      "content": [{ "type": "text", "text": "Context" }]
+    },
+    {
+      "type": "paragraph",
+      "content": [{ "type": "text", "text": "Why this task exists." }]
+    },
+    {
+      "type": "heading",
+      "attrs": { "level": 2 },
+      "content": [{ "type": "text", "text": "Task" }]
+    },
+    {
+      "type": "paragraph",
+      "content": [{ "type": "text", "text": "What needs to be done." }]
+    },
+    {
+      "type": "heading",
+      "attrs": { "level": 2 },
+      "content": [{ "type": "text", "text": "Acceptance criteria" }]
+    },
+    {
+      "type": "taskList",
+      "attrs": { "localId": "ac-list" },
+      "content": [
+        {
+          "type": "taskItem",
+          "attrs": { "localId": "ac-1", "state": "TODO" },
+          "content": [{ "type": "text", "text": "Criterion 1" }]
+        },
+        {
+          "type": "taskItem",
+          "attrs": { "localId": "ac-2", "state": "TODO" },
+          "content": [{ "type": "text", "text": "Criterion 2" }]
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": { "level": 2 },
+      "content": [{ "type": "text", "text": "Notes" }]
+    },
+    {
+      "type": "paragraph",
+      "content": [{ "type": "text", "text": "" }]
+    }
+  ]
+}
+```
+
+### Usage with --description-file
+
+```bash
+cat > /tmp/jira-description.json << 'EOF'
+{ ... ADF JSON ... }
+EOF
+
+acli jira workitem create \
+  --project "PROJ" \
+  --summary "Title" \
+  --type "Task" \
+  --description-file /tmp/jira-description.json
+
+rm /tmp/jira-description.json
+```
+
 ## Tips
 
 - `acli jira --help` — full command reference

@@ -74,7 +74,7 @@ Apply the conventions from Step 2.
 ```
 Preferred verbs: Add, Fix, Implement, Refactor, Update, Remove, Handle
 
-**Default description template:**
+**Default description template (Markdown — used for preview and for GitLab/GitHub):**
 ```markdown
 ## Context
 [1-2 sentences: why this task exists, what problem it solves]
@@ -89,6 +89,8 @@ Preferred verbs: Add, Fix, Implement, Refactor, Update, Remove, Handle
 ## Notes
 [Technical constraints, dependencies, links — leave empty if none]
 ```
+
+**If tracker = Jira:** also prepare an ADF version of the description (see Step 6). The preview in Step 5 still uses the Markdown version for readability; ADF is only used at creation time.
 
 Do not invent criteria. Base everything on what was described in `$ARGUMENTS`. If the request is vague, keep criteria generic rather than guessing.
 
@@ -135,14 +137,78 @@ gh issue create \
 ```
 
 **Jira (acli):**
+
+Jira does not render Markdown — use ADF (Atlassian Document Format) for the description.
+Write the ADF JSON to a temp file and pass it via `--description-file`.
+
 ```bash
-acli jira issue create \
+# 1. Write the ADF description to a temp file
+cat > /tmp/jira-description.json << 'EOF'
+{
+  "version": 1,
+  "type": "doc",
+  "content": [
+    {
+      "type": "heading",
+      "attrs": { "level": 2 },
+      "content": [{ "type": "text", "text": "Context" }]
+    },
+    {
+      "type": "paragraph",
+      "content": [{ "type": "text", "text": "<context text>" }]
+    },
+    {
+      "type": "heading",
+      "attrs": { "level": 2 },
+      "content": [{ "type": "text", "text": "Task" }]
+    },
+    {
+      "type": "paragraph",
+      "content": [{ "type": "text", "text": "<task text>" }]
+    },
+    {
+      "type": "heading",
+      "attrs": { "level": 2 },
+      "content": [{ "type": "text", "text": "Acceptance criteria" }]
+    },
+    {
+      "type": "taskList",
+      "attrs": { "localId": "ac-list" },
+      "content": [
+        {
+          "type": "taskItem",
+          "attrs": { "localId": "ac-1", "state": "TODO" },
+          "content": [{ "type": "text", "text": "<criterion 1>" }]
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": { "level": 2 },
+      "content": [{ "type": "text", "text": "Notes" }]
+    },
+    {
+      "type": "paragraph",
+      "content": [{ "type": "text", "text": "<notes text, or empty>" }]
+    }
+  ]
+}
+EOF
+
+# 2. Create the ticket
+acli jira workitem create \
   --project "<PROJECT-KEY>" \
   --summary "<title>" \
-  --description "<description>" \
-  --issuetype "<issuetype>" \
-  --priority "<priority>"
+  --type "<Task|Bug|Story>" \
+  --description-file /tmp/jira-description.json \
+  --label "<labels>"
+
+# 3. Cleanup
+rm /tmp/jira-description.json
 ```
+
+Adapt the `taskList` content to include one `taskItem` per acceptance criterion.
+If Notes is empty, use `{ "type": "paragraph", "content": [{ "type": "text", "text": "" }] }`.
 
 ---
 
