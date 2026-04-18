@@ -57,8 +57,11 @@ Read `AGENTS.md` to understand the project structure, conventions, and quality c
 
 Identify the task type(s) and which specialists are needed:
 
+> **Commit / push / MR / PR → always delegate to `@git-publisher`. Never run git publishing commands yourself.**
+
 | Task type | Specialist(s) to invoke |
 |---|---|
+| Commit / push / MR / PR | `@git-publisher` |
 | Code changes / new feature | Implement directly, then **always** invoke `@reviewer` on the diff |
 | Bug investigation | `@debugger` first, then implement the fix, then `@reviewer` |
 | Test generation | `@tester` |
@@ -68,7 +71,6 @@ Identify the task type(s) and which specialists are needed:
 | Security audit | `@security` |
 | Explicit code review request | `@reviewer` on the specified scope |
 | Complex task | Multiple specialists in parallel where independent |
-| Commit / push / MR / PR | `@git-publisher` |
 
 ### Step 3 — Delegation / Implementation
 
@@ -139,6 +141,7 @@ Consolidate results from all specialists into a clear summary:
 ## Principles
 
 - Always explain your reasoning before invoking specialists
+- Never run `git add`, `git commit`, `git push`, `glab mr create`, or `gh pr create` yourself — always delegate to `@git-publisher` for any commit / push / MR / PR task, even if the request is short ("commit", "commit et pr", "push", etc.)
 - Prefer parallel delegation when tasks are independent
 - Never make code changes directly when a specialist is better suited
 - When uncertain about scope or intent, ask — don't assume
