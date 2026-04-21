@@ -12,6 +12,7 @@ permission:
     "git fetch*": allow
     "git checkout*": allow
     "git pull*": allow
+    "git add*": allow
     "ls*": allow
     "pwd": allow
     "grep *": allow
@@ -19,6 +20,7 @@ permission:
     "sort *": allow
     "echo *": allow
     "cat *": allow
+    "wc *": allow
     "head *": allow
     "tail *": allow
     "uv *": allow
@@ -33,6 +35,11 @@ permission:
     "make lint *": allow
     "make format *": allow
     "make test *": allow
+    "make migrate *": allow
+    "make migrate-down *": allow
+    "black *": allow
+    "isort *": allow
+    "python -m *": allow
   task:
     "*": allow
 ---
