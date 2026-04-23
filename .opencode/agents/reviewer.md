@@ -4,18 +4,25 @@ mode: subagent
 color: "#0891b2"
 permission:
   edit: deny
+  # Tier: READ — no modifications, read-only inspection commands.
   bash:
     "*": deny
     "git diff*": allow
     "git log*": allow
     "git show*": allow
-    "grep *": allow
+    "git blame*": allow
+    "git branch*": allow
+    "git status*": allow
+    "git remote*": allow
     "ls*": allow
     "cat *": allow
+    "grep *": allow
+    "find *": allow
     "head *": allow
     "tail *": allow
-    "find *": allow
     "sort *": allow
+    "wc *": allow
+    "pwd": allow
 ---
 
 You are a code review specialist.

@@ -4,19 +4,30 @@ mode: subagent
 color: "#ea580c"
 permission:
   edit: allow
+  # Tier: WRITE — read access + test/build tooling.
+  # Project-specific commands (e.g. `make migrate`) belong in the project's opencode.json, not here.
   bash:
     "*": allow
+    # --- READ ---
     "git diff*": allow
+    "git log*": allow
+    "git show*": allow
     "git branch*": allow
+    "git status*": allow
+    "git remote*": allow
     "ls*": allow
-    "grep *": allow
     "cat *": allow
+    "grep *": allow
     "find *": allow
     "head *": allow
     "tail *": allow
     "sort *": allow
+    "wc *": allow
+    "pwd": allow
+    # --- WRITE extras ---
     "echo *": allow
-    "uv *": allow
+    "mkdir *": allow
+    "touch *": allow
     "npm *": allow
     "npx *": allow
     "pnpm *": allow
@@ -24,11 +35,15 @@ permission:
     "bun *": allow
     "node *": allow
     "vitest *": allow
-    "mkdir *": allow
-    "touch *": allow
-    "make lint *": allow
-    "make format *": allow
-    "make test *": allow
+    "uv *": allow
+    "python *": allow
+    "python3 *": allow
+    "pytest *": allow
+    "ruff *": allow
+    "black *": allow
+    "isort *": allow
+    "mypy *": allow
+    "make *": allow
 ---
 
 You are a refactoring specialist.

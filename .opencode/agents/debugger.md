@@ -4,19 +4,25 @@ mode: subagent
 color: "#dc2626"
 permission:
   edit: deny
+  # Tier: READ — no modifications, read-only inspection commands.
   bash:
     "*": deny
-    "git log*": allow
     "git diff*": allow
+    "git log*": allow
     "git show*": allow
     "git blame*": allow
-    "grep *": allow
+    "git branch*": allow
+    "git status*": allow
+    "git remote*": allow
     "ls*": allow
     "cat *": allow
+    "grep *": allow
+    "find *": allow
     "head *": allow
     "tail *": allow
-    "find *": allow
     "sort *": allow
+    "wc *": allow
+    "pwd": allow
 ---
 
 You are a debug investigation specialist.

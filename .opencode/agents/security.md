@@ -4,12 +4,26 @@ mode: subagent
 color: "#991b1b"
 permission:
   edit: deny
+  # Tier: READ — no modifications, read-only inspection commands.
+  # Security keeps the strictest allowlist — no git mutation, no execution.
   bash:
     "*": deny
-    "grep *": allow
+    "git diff*": allow
+    "git log*": allow
+    "git show*": allow
+    "git blame*": allow
+    "git branch*": allow
+    "git status*": allow
+    "git remote*": allow
     "ls*": allow
     "cat *": allow
+    "grep *": allow
     "find *": allow
+    "head *": allow
+    "tail *": allow
+    "sort *": allow
+    "wc *": allow
+    "pwd": allow
 ---
 
 You are a security audit specialist.

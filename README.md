@@ -1101,6 +1101,122 @@ Build:
 
 ---
 
+## 9bis. Agent permissions matrix
+
+Agents are grouped into four permission tiers. Every agent's `permission.bash` allowlist should match one of these tiers. Project-specific commands (e.g. `make migrate`, `npm run db:seed`) **must live in the project's `opencode.json`**, never in the global agent definitions — otherwise they pollute every project using the symlink.
+
+### Tier READ — read-only agents
+
+Agents: `reviewer`, `debugger`, `performance`, `security`, `docs-writer` (+`edit: allow` for docs files only).
+
+```yaml
+edit: deny              # security/performance/reviewer/debugger — docs-writer overrides with allow
+bash:
+  "*": deny
+  "git diff*": allow
+  "git log*": allow
+  "git show*": allow
+  "git blame*": allow
+  "git branch*": allow
+  "git status*": allow
+  "git remote*": allow
+  "ls*": allow
+  "cat *": allow
+  "grep *": allow
+  "find *": allow
+  "head *": allow
+  "tail *": allow
+  "sort *": allow
+  "wc *": allow
+  "pwd": allow
+```
+
+### Tier WRITE — code-modifying agents
+
+Agents: `tester`, `refactorer`. Inherits READ + build/test tooling.
+
+```yaml
+edit: allow
+bash:
+  "*": allow              # catch-all allow so any stack's CLI works without prompting
+  # + all READ entries
+  "echo *": allow
+  "mkdir *": allow
+  "touch *": allow
+  "npm *": allow
+  "npx *": allow
+  "pnpm *": allow
+  "yarn *": allow
+  "bun *": allow
+  "node *": allow
+  "vitest *": allow
+  "uv *": allow
+  "python *": allow
+  "python3 *": allow
+  "pytest *": allow
+  "ruff *": allow
+  "black *": allow
+  "isort *": allow
+  "mypy *": allow
+  "make *": allow
+```
+
+### Tier ORCHESTRATOR
+
+Inherits WRITE + branch management. Catch-all stays `ask` (not `allow`) — the orchestrator delegates, it shouldn't silently run arbitrary shell.
+
+```yaml
+bash:
+  "*": ask
+  # + all READ and WRITE entries
+  "git fetch*": allow
+  "git checkout*": allow
+  "git pull*": allow
+  "git add*": allow
+task:
+  "*": allow
+```
+
+### Tier PUBLISHER
+
+Agent: `git-publisher`. READ + git commit/push + MR/PR creation.
+
+```yaml
+edit: deny
+bash:
+  "*": deny
+  # + all READ entries
+  "git add*": allow
+  "git commit*": allow
+  "git push*": allow
+  "glab mr *": allow
+  "glab issue view*": allow
+  "gh pr *": allow
+  "gh issue view*": allow
+```
+
+### Where to put project-specific commands
+
+Never in agent files. Always in the project's `opencode.json`:
+
+```jsonc
+{
+  "agent": {
+    "orchestrator": {
+      "permission": {
+        "bash": {
+          "make migrate": "allow",
+          "make seed": "allow",
+          "npm run db:*": "allow"
+        }
+      }
+    }
+  }
+}
+```
+
+---
+
 ## 10. Customization
 
 ### Adding a project-specific agent

@@ -3,27 +3,32 @@ description: Main orchestrator — analyzes the task, decides the branch strateg
 mode: primary
 color: "#7c3aed"
 permission:
+  # Tier: ORCHESTRATOR — WRITE + branch management + task delegation.
+  # Catch-all is `ask` (not `allow`) because the orchestrator should never silently
+  # run unexpected commands at the top level — it delegates to specialists instead.
+  # Project-specific commands (e.g. `make migrate`) belong in the project's opencode.json.
   bash:
     "*": ask
+    # --- READ ---
     "git status*": allow
-    "git branch*": allow
     "git diff*": allow
     "git log*": allow
-    "git fetch*": allow
-    "git checkout*": allow
-    "git pull*": allow
-    "git add*": allow
+    "git show*": allow
+    "git branch*": allow
+    "git remote*": allow
     "ls*": allow
-    "pwd": allow
+    "cat *": allow
     "grep *": allow
     "find *": allow
-    "sort *": allow
-    "echo *": allow
-    "cat *": allow
-    "wc *": allow
     "head *": allow
     "tail *": allow
-    "uv *": allow
+    "sort *": allow
+    "wc *": allow
+    "pwd": allow
+    # --- WRITE extras ---
+    "echo *": allow
+    "mkdir *": allow
+    "touch *": allow
     "npm *": allow
     "npx *": allow
     "pnpm *": allow
@@ -31,15 +36,20 @@ permission:
     "bun *": allow
     "node *": allow
     "vitest *": allow
-    "mkdir *": allow
-    "make lint *": allow
-    "make format *": allow
-    "make test *": allow
-    "make migrate *": allow
-    "make migrate-down *": allow
+    "uv *": allow
+    "python *": allow
+    "python3 *": allow
+    "pytest *": allow
+    "ruff *": allow
     "black *": allow
     "isort *": allow
-    "python -m *": allow
+    "mypy *": allow
+    "make *": allow
+    # --- ORCHESTRATOR extras (branch management) ---
+    "git fetch*": allow
+    "git checkout*": allow
+    "git pull*": allow
+    "git add*": allow
   task:
     "*": allow
 ---

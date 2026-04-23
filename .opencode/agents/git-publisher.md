@@ -4,27 +4,33 @@ mode: subagent
 color: "#4f46e5"
 permission:
   edit: deny
+  # Tier: PUBLISHER — READ + git commit/push + MR/PR creation via glab/gh.
   bash:
     "*": deny
-    "git status*": allow
+    # --- READ ---
     "git diff*": allow
     "git log*": allow
+    "git show*": allow
     "git branch*": allow
+    "git status*": allow
     "git remote*": allow
+    "ls*": allow
+    "cat *": allow
+    "grep *": allow
+    "find *": allow
+    "head *": allow
+    "tail *": allow
+    "sort *": allow
+    "wc *": allow
+    "pwd": allow
+    # --- PUBLISHER extras ---
     "git add*": allow
     "git commit*": allow
     "git push*": allow
-    "glab mr create*": allow
-    "glab mr list*": allow
-    "glab mr view*": allow
-    "gh pr create*": allow
-    "gh pr list*": allow
-    "gh pr view*": allow
-    "grep *": allow
-    "cat *": allow
-    "head *": allow
-    "tail *": allow
-    "ls*": allow
+    "glab mr *": allow
+    "glab issue view*": allow
+    "gh pr *": allow
+    "gh issue view*": allow
 ---
 
 You are a git publishing specialist.
