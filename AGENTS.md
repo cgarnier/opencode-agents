@@ -74,19 +74,12 @@ cd .opencode && bun install
 
 ## Quality Checks
 
-These apply to this repo's own shell scripts. Run after any `.sh` file change:
+These apply to this repo's own shell scripts. Run after any `.sh` file change.
 
-```bash
-# Syntax check — run for each modified script
-bash -n setup.sh
-bash -n wt-new.sh
-bash -n wt-done.sh
+- syntax: bash -n setup.sh && bash -n wt-new.sh && bash -n wt-done.sh && bash -n install-shell-helpers.sh && bash -n shell-functions.sh
+- lint: shellcheck setup.sh wt-new.sh wt-done.sh install-shell-helpers.sh shell-functions.sh
 
-# Static analysis (if shellcheck is available)
-shellcheck setup.sh wt-new.sh wt-done.sh
-```
-
-No lint, typecheck, test, or build steps exist for this repo.
+No test, typecheck, format, or build steps exist for this repo (shell + markdown only).
 
 ## Conventions
 
