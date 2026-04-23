@@ -138,77 +138,10 @@ gh issue create \
 
 **Jira (acli):**
 
-Jira does not render Markdown — use ADF (Atlassian Document Format) for the description.
-Write the ADF JSON to a temp file and pass it via `--description-file`.
-
-```bash
-# 1. Write the ADF description to a temp file
-cat > /tmp/jira-description.json << 'EOF'
-{
-  "version": 1,
-  "type": "doc",
-  "content": [
-    {
-      "type": "heading",
-      "attrs": { "level": 2 },
-      "content": [{ "type": "text", "text": "Context" }]
-    },
-    {
-      "type": "paragraph",
-      "content": [{ "type": "text", "text": "<context text>" }]
-    },
-    {
-      "type": "heading",
-      "attrs": { "level": 2 },
-      "content": [{ "type": "text", "text": "Task" }]
-    },
-    {
-      "type": "paragraph",
-      "content": [{ "type": "text", "text": "<task text>" }]
-    },
-    {
-      "type": "heading",
-      "attrs": { "level": 2 },
-      "content": [{ "type": "text", "text": "Acceptance criteria" }]
-    },
-    {
-      "type": "taskList",
-      "attrs": { "localId": "ac-list" },
-      "content": [
-        {
-          "type": "taskItem",
-          "attrs": { "localId": "ac-1", "state": "TODO" },
-          "content": [{ "type": "text", "text": "<criterion 1>" }]
-        }
-      ]
-    },
-    {
-      "type": "heading",
-      "attrs": { "level": 2 },
-      "content": [{ "type": "text", "text": "Notes" }]
-    },
-    {
-      "type": "paragraph",
-      "content": [{ "type": "text", "text": "<notes text, or empty>" }]
-    }
-  ]
-}
-EOF
-
-# 2. Create the ticket
-acli jira workitem create \
-  --project "<PROJECT-KEY>" \
-  --summary "<title>" \
-  --type "<Task|Bug|Story>" \
-  --description-file /tmp/jira-description.json \
-  --label "<labels>"
-
-# 3. Cleanup
-rm /tmp/jira-description.json
-```
-
-Adapt the `taskList` content to include one `taskItem` per acceptance criterion.
-If Notes is empty, use `{ "type": "paragraph", "content": [{ "type": "text", "text": "" }] }`.
+Use the canonical ADF template and workflow from `.opencode/skills/jira/SKILL.md`
+(sections `## ADF — Atlassian Document Format` and `### Usage with --description-file`).
+Fill the template with Context / Task / Acceptance criteria (one `taskItem` per criterion) / Notes,
+write to a temp file, then call `acli jira workitem create --description-file ...`.
 
 ---
 

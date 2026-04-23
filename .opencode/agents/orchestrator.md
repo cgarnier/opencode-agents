@@ -20,36 +20,11 @@ permission:
     "cat *": allow
     "grep *": allow
     "find *": allow
-    "head *": allow
-    "tail *": allow
-    "sort *": allow
-    "wc *": allow
     "pwd": allow
-    # --- WRITE extras ---
-    "echo *": allow
-    "mkdir *": allow
-    "touch *": allow
-    "npm *": allow
-    "npx *": allow
-    "pnpm *": allow
-    "yarn *": allow
-    "bun *": allow
-    "node *": allow
-    "vitest *": allow
-    "uv *": allow
-    "python *": allow
-    "python3 *": allow
-    "pytest *": allow
-    "ruff *": allow
-    "black *": allow
-    "isort *": allow
-    "mypy *": allow
-    "make *": allow
     # --- ORCHESTRATOR extras (branch management) ---
     "git fetch*": allow
     "git checkout*": allow
     "git pull*": allow
-    "git add*": allow
   task:
     "*": allow
 ---

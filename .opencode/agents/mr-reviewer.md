@@ -17,10 +17,6 @@ permission:
     "cat *": allow
     "grep *": allow
     "find *": allow
-    "head *": allow
-    "tail *": allow
-    "sort *": allow
-    "wc *": allow
     "pwd": allow
     "glab mr view*": allow
     "glab mr diff*": allow

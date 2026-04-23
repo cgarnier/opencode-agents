@@ -19,10 +19,6 @@ permission:
     "cat *": allow
     "grep *": allow
     "find *": allow
-    "head *": allow
-    "tail *": allow
-    "sort *": allow
-    "wc *": allow
     "pwd": allow
 ---
 
