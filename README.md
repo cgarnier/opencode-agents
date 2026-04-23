@@ -125,10 +125,23 @@ Done. Run 'opencode' to start.
 | 3 | Symlink `.opencode/rules/` → template | Skip + warning if a real folder already exists |
 | 4 | Symlink `.opencode/commands/` → template | Skip + warning if a real folder already exists |
 | 5 | Symlink `.opencode/skills/` → template | Skip + warning if a real folder already exists |
-| 6 | Copies `opencode.json` | Skip if already present |
+| 6 | Copies `opencode.json` (auto-selects template by detected stack: node/python/go/generic) | Skip if already present |
 | 7 | Copies `AGENTS.md.template` → `AGENTS.md` | Skip if already present |
 
 **Idempotent**: re-running `agents-setup` in an already-configured project is safe.
+
+### Stack-aware `opencode.json` templates
+
+`setup.sh` picks the right `opencode.json` template based on the project's stack:
+
+| Detection | Template used | Pre-allowed commands |
+|---|---|---|
+| `package.json` present | `node.json` | npm, pnpm, yarn, bun, npx, node, vitest, tsc, eslint, prettier |
+| `pyproject.toml`, `setup.py` or `requirements.txt` | `python.json` | uv, python, python3, pip, poetry, pytest, ruff, black, isort, mypy, pyright |
+| `go.mod` present | `go.json` | go, gofmt, goimports, golangci-lint, staticcheck |
+| None of the above | `generic.json` | git read + ls + pwd only |
+
+All templates set the catch-all to `ask` for the `build` agent — pre-allowing common stack tooling just removes the friction of confirming every test run. Override these in the project's `opencode.json` after install if needed.
 
 ### Symlink vs copy strategy
 

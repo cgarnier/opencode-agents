@@ -42,10 +42,23 @@ for dir in agents rules commands skills; do
   fi
 done
 
-# 3. Copy opencode.json if absent
+# 3. Copy opencode.json if absent — detect the stack to pick the right template
 if [ ! -f "$PROJECT_DIR/opencode.json" ]; then
-  cp "$TEMPLATE_DIR/opencode.json" "$PROJECT_DIR/opencode.json"
-  ok "opencode.json copied (customize for this project)"
+  STACK="generic"
+  if [ -f "$PROJECT_DIR/package.json" ]; then
+    STACK="node"
+  elif [ -f "$PROJECT_DIR/pyproject.toml" ] || [ -f "$PROJECT_DIR/setup.py" ] || [ -f "$PROJECT_DIR/requirements.txt" ]; then
+    STACK="python"
+  elif [ -f "$PROJECT_DIR/go.mod" ]; then
+    STACK="go"
+  fi
+
+  TEMPLATE_FILE="$TEMPLATE_DIR/opencode.json.templates/${STACK}.json"
+  # Fall back to legacy template if the per-stack version is missing
+  [ -f "$TEMPLATE_FILE" ] || TEMPLATE_FILE="$TEMPLATE_DIR/opencode.json"
+
+  cp "$TEMPLATE_FILE" "$PROJECT_DIR/opencode.json"
+  ok "opencode.json copied (stack: ${STACK}) — customize for this project"
 else
   skip "opencode.json already exists"
 fi

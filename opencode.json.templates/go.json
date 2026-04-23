@@ -1,0 +1,34 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    ".opencode/rules/git-safety.md",
+    ".opencode/rules/code-quality.md"
+  ],
+  "agent": {
+    "build": {
+      "permission": {
+        "bash": {
+          "*": "ask",
+          "git status*": "allow",
+          "git diff*": "allow",
+          "git log*": "allow",
+          "git branch*": "allow",
+          "git fetch*": "allow",
+          "ls*": "allow",
+          "pwd": "allow",
+          "go *": "allow",
+          "gofmt *": "allow",
+          "goimports *": "allow",
+          "golangci-lint *": "allow",
+          "staticcheck *": "allow"
+        }
+      }
+    },
+    "plan": {
+      "permission": {
+        "edit": "deny",
+        "bash": "deny"
+      }
+    }
+  }
+}
