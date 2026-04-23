@@ -87,6 +87,7 @@ Identify the task type(s) and which specialists are needed:
 | Performance analysis | `@performance` |
 | Security audit | `@security` |
 | Explicit code review request | `@reviewer` on the specified scope |
+| MR/PR review threads to triage | `@mr-reviewer` |
 | Complex task | Multiple specialists in parallel where independent |
 
 ### Step 3 — Delegation / Implementation

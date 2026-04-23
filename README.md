@@ -23,6 +23,7 @@ Each agent has a precise role and scoped permissions. Global rules ensure `main`
    - [Performance](#59-performance--subagent)
    - [Security](#510-security--subagent)
    - [Git-publisher](#511-git-publisher--subagent)
+   - [Mr-reviewer](#511bis-mr-reviewer--subagent)
 6. [Global rules](#6-global-rules)
    - [git-safety](#61-git-safety)
    - [code-quality](#62-code-quality)
@@ -190,7 +191,8 @@ If the system were installed globally with a single shared config, a poorly main
     │   ├── docs-writer.md           ← subagent
     │   ├── performance.md           ← subagent
     │   ├── security.md              ← subagent
-    │   └── git-publisher.md         ← subagent
+    │   ├── git-publisher.md         ← subagent
+    │   └── mr-reviewer.md           ← subagent
     │
     ├── commands/                    ← symlinked into each project
     │   ├── ticket.md                ← /ticket <id> [context]
@@ -553,6 +555,28 @@ test: ✓ (N passing)
 **Severity levels**: Critical → High → Medium → Low → Info
 
 **Important**: reports only what is found in the code. Does not construct hypothetical attack chains.
+
+---
+
+### 5.11bis Mr-reviewer — subagent
+
+| Property | Value |
+|---|---|
+| Mode | `subagent` |
+| Color | Violet `#9333ea` |
+| File access | **None** — `edit: deny` |
+| Bash | Git read · `glab mr view/diff/list` · `gh pr view/diff/list` · `gh api` (read-only) |
+
+**Role**: triage of unresolved comments on the current MR/PR. Reads, classifies, proposes actions and reply drafts. Never replies, never pushes, never modifies files.
+
+**Workflow**:
+1. Detect platform (`git remote get-url origin`)
+2. Find the MR/PR for the current branch (`glab mr view --comments` or `gh pr view --comments`)
+3. Collect unresolved threads (GitLab) or all review + issue comments (GitHub via `gh api`)
+4. Classify each thread (Blocker / Change request / Question / Suggestion / Praise / Already addressed)
+5. Output a prioritized action plan with reply drafts
+
+**Use case**: after a reviewer left several comments on your MR, invoke `@mr-reviewer` to get a structured summary instead of clicking through threads in the web UI. The orchestrator can then dispatch fixes to `@build` and reply drafts to `@git-publisher`.
 
 ---
 
@@ -1439,6 +1463,7 @@ wt-new feature/notifications --from current
 | `performance` | subagent | Amber | No | ls · grep · cat · find | Performance audit |
 | `security` | subagent | Dark red | No | grep · ls · cat · find (read-only) | Security audit |
 | `git-publisher` | subagent | Indigo | No | Git read/add/commit/push · glab · gh | Commit + MR/PR |
+| `mr-reviewer` | subagent | Violet | No | Git read · glab/gh view/diff (read-only) | Triage MR/PR review threads |
 
 ### Useful OpenCode commands
 
