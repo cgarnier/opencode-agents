@@ -29,7 +29,13 @@ No application framework, no TypeScript, no build pipeline.
 ├── wt-done.sh                — Tear down a worktree: remove dir, delete branch, prune list
 ├── shell-functions.sh        — Defines the wt-new and wt-done shell functions (must be sourced)
 ├── install-shell-helpers.sh  — One-time installer: injects source shell-functions.sh into .bashrc/.zshrc
-├── opencode.json             — Template OpenCode config (copied into target projects, not used here)
+├── opencode.json             — Active config for this repo + fallback template for setup.sh
+├── opencode.json.templates/  — Per-stack templates merged into target projects by setup.sh
+│   ├── _agents.json          — Shared fragment: small_model + agent model/temperature overrides
+│   ├── generic.json          — Base permissions (no stack-specific tooling)
+│   ├── node.json             — Node/Bun/TS tooling allowlist
+│   ├── python.json           — Python tooling allowlist
+│   └── go.json               — Go tooling allowlist
 ├── AGENTS.md.template        — Starter AGENTS.md copied into target projects by setup.sh
 └── .opencode/
     ├── package.json      — Single dep: @opencode-ai/plugin
@@ -60,6 +66,7 @@ No application framework, no TypeScript, no build pipeline.
 
 ```bash
 # Install agent system into a target project (run from the target project root)
+# Requires `jq` to merge the shared agents fragment into the stack template
 bash ~/dev/agents/setup.sh
 
 # Create a new worktree + feature branch, then open opencode
@@ -174,7 +181,26 @@ All names in kebab-case. Never commit directly to `main` (enforced by `.opencode
 2. Decide the permission tier (read-only vs write, `mode: primary` vs subagent)
 3. Add a `description:` line that clearly states what tasks it handles — the orchestrator uses this for routing
 4. Add an entry to the routing table in `orchestrator.md` (`## Workflow > Step 2 — Task Analysis`)
-5. Run `bash -n` on any shell scripts you touched, then `shellcheck` if available
+5. If the agent needs a non-default model, add its override to `opencode.json.templates/_agents.json` and mirror it in `opencode.json` at the repo root
+6. Run `bash -n` on any shell scripts you touched, then `shellcheck` if available
+
+## Updating Agent Model Overrides
+
+Model and temperature overrides for custom subagents live in a single fragment:
+`opencode.json.templates/_agents.json`. `setup.sh` deep-merges it into the
+stack-specific template using `jq -s '.[0] * .[1]'` when creating a new
+project's `opencode.json`.
+
+Workflow when changing a model:
+
+1. Edit `opencode.json.templates/_agents.json` — the single source of truth for overrides
+2. Mirror the same change in `opencode.json` at the repo root — this is the active config when opening opencode in this repo and the fallback template when a stack `.json` is missing. Keep both in sync manually.
+3. Existing target projects do NOT auto-update; users must delete their local `opencode.json` and re-run `bash ~/dev/agents/setup.sh` to pick up the new overrides.
+
+Conventions:
+
+- The `_` prefix on `_agents.json` marks it as a fragment, not a selectable stack template. `setup.sh` never picks it up via stack detection.
+- Stack templates (`node.json`, `python.json`, etc.) must NOT define agents that appear in the fragment — the fragment would silently override them. Stack templates are for `build`/`plan` permissions and bash allowlists only.
 
 ## Notes
 
