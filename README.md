@@ -316,6 +316,10 @@ OpenCode provides two types of agents:
 
 **Role**: structured code review. Analyzes code across 8 dimensions and returns a hierarchical report.
 
+**Two modes** (selected by the orchestrator based on diff size, or by passing `Mode: quick`/`Mode: full` in the prompt):
+- **Quick** — for small diffs (< 100 lines, < 5 files): Critical issues only, max 10 lines of output. Used by the orchestrator after small code changes to keep the loop fast.
+- **Full** *(default)* — full 8-dimension analysis with Critical / Warning / Info / Positive / Summary sections. Used for large diffs and explicit review requests.
+
 **Dimensions analyzed**:
 - Correctness (logic, edge cases, null handling)
 - Quality (naming, function size, single responsibility)

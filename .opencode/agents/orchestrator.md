@@ -115,11 +115,19 @@ If the branch was forked from a branch other than `main`, adapt accordingly:
 git diff <base-branch>...HEAD
 ```
 
-**2. Pass the diff content directly to `@reviewer`.**
+**2. Pick the review mode based on diff size:**
+
+- Diff < 100 lines AND < 5 files changed → `Mode: quick` (Critical issues only, max 10 lines)
+- Otherwise → `Mode: full` (8-dimension analysis)
+
+Use `git diff main...HEAD --stat` to count files and lines quickly.
+
+**3. Pass the diff content directly to `@reviewer`.**
 
 Do NOT ask the reviewer to run `git diff` itself. Instead, construct the Task call like:
 
 ```
+Mode: <quick|full>
 Review the following diff.
 Context: <brief description of what was changed and why>
 Branch: <current branch>
@@ -130,7 +138,7 @@ Project conventions: <relevant items from AGENTS.md>
 
 The reviewer analyzes the provided content without needing git access.
 
-**3. On review results:**
+**4. On review results:**
 - **Critical** issues → fix them before continuing, then re-collect diff and re-run the review
 - **Warning / Info** → non-blocking, include in the synthesis
 - If `@reviewer` was already explicitly invoked in Step 3 → skip this step
