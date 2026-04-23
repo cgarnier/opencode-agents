@@ -16,9 +16,30 @@ avant de déclarer la tâche terminée.
 Lire la section `## Quality Checks` dans `AGENTS.md` à la racine du projet.
 Elle liste les commandes à exécuter (tests, lint, format, typecheck, build).
 
-Si la section est absente ou incomplète, signaler à l'utilisateur :
-> "La section `## Quality Checks` est manquante dans AGENTS.md.
-> Ajoute les commandes pour que je puisse valider mes changements."
+#### Fallback — `AGENTS.md` absent
+
+Si `AGENTS.md` n'existe pas à la racine du projet :
+1. **STOP**. Ne pas deviner les commandes à exécuter.
+2. Avertir l'utilisateur :
+   > "AGENTS.md est absent à la racine du projet. Lance `bash ~/dev/agents/setup.sh`
+   > pour initialiser le fichier, puis `/check-agents` pour qu'il soit rempli
+   > automatiquement à partir du code. Je ne peux pas valider mes changements
+   > sans cette configuration."
+3. Ne **jamais** déclarer la tâche terminée. La laisser en état `blocked`.
+
+#### Fallback — section `## Quality Checks` absente ou vide
+
+Si `AGENTS.md` existe mais que `## Quality Checks` est absente, vide, ou ne contient
+que des placeholders (`<command>`, commentaires HTML) :
+1. Avertir **une seule fois** :
+   > "`## Quality Checks` est manquante/vide dans AGENTS.md.
+   > Je peux lancer `/check-agents` pour l'inférer automatiquement — veux-tu ?"
+2. Si l'utilisateur accepte → attendre qu'il exécute la commande, puis reprendre.
+3. Si l'utilisateur refuse → marquer la tâche comme **`completed without quality gate`**
+   avec un warning explicite dans la synthèse :
+   > "⚠ Tâche terminée sans quality gate — `## Quality Checks` n'était pas défini.
+   > Les changements n'ont pas été validés par des checks automatiques."
+4. Ne jamais inventer silencieusement des commandes (pas de `npm test` deviné).
 
 ### Étape 2 — Exécuter toutes les commandes
 
