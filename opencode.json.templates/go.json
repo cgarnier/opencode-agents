@@ -1,0 +1,22 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    ".opencode/rules/git-safety.md",
+    ".opencode/rules/code-quality.md"
+  ],
+  "agent": {
+    "build": {
+      "permission": {
+        "bash": {
+          "*": "allow"
+        }
+      }
+    },
+    "plan": {
+      "permission": {
+        "edit": "deny",
+        "bash": "deny"
+      }
+    }
+  }
+}

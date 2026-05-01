@@ -2,62 +2,23 @@
 alwaysApply: true
 ---
 
-# Code Quality Gate — Règle absolue
+# Code Quality Gate
 
-## Principe fondamental
+Après TOUT changement de code, les checks définis dans `AGENTS.md > ## Quality Checks`
+doivent passer avant de déclarer la tâche terminée.
 
-Après TOUT changement de code (fichiers créés, modifiés ou supprimés),
-tous les checks qualité définis dans `AGENTS.md` doivent passer
-avant de déclarer la tâche terminée.
+## Procédure
 
-## Procédure (OBLIGATOIRE pour tout agent qui modifie du code)
+1. Lire `## Quality Checks` dans `AGENTS.md` à la racine du projet.
+2. Exécuter les commandes dans l'ordre : `format` → `lint` → `typecheck` → `test` → `build`.
+3. En cas d'échec : corriger, re-exécuter. Si l'échec est préexistant, le signaler explicitement.
+4. Rapport final : `"Tous les checks passent : format ✓ lint ✓ typecheck ✓ test ✓ build ✓"`.
 
-### Étape 1 — Lire les commandes qualité du projet
-Lire la section `## Quality Checks` dans `AGENTS.md` à la racine du projet.
-Elle liste les commandes à exécuter (tests, lint, format, typecheck, build).
+Ne JAMAIS déclarer la tâche terminée si un check échoue sans l'avoir signalé.
 
-Si la section est absente ou incomplète, signaler à l'utilisateur :
-> "La section `## Quality Checks` est manquante dans AGENTS.md.
-> Ajoute les commandes pour que je puisse valider mes changements."
+## Fallback — AGENTS.md ou Quality Checks manquants
 
-### Étape 2 — Exécuter toutes les commandes
-
-Exécuter chaque commande définie. Ordre recommandé :
-1. `format` — formatter le code (peut modifier des fichiers)
-2. `lint` — vérifier le style et les règles statiques
-3. `typecheck` — vérifier les types
-4. `test` — exécuter les tests
-5. `build` — vérifier que le projet compile/bundle
-
-### Étape 3 — En cas d'échec
-
-Si une commande échoue :
-1. Analyser l'erreur
-2. Corriger le problème
-3. Re-exécuter la commande concernée
-4. Recommencer jusqu'à passage complet
-
-Si l'échec n'est pas lié aux changements effectués (erreur préexistante) :
-- Signaler à l'utilisateur : "Ce check échouait déjà avant mes changements : <erreur>"
-- Proposer de corriger ou d'ignorer selon le contexte
-
-### Étape 4 — Rapport final
-
-Une fois tous les checks passés, confirmer :
-> "Tous les checks qualité passent : format ✓ lint ✓ typecheck ✓ test ✓ build ✓"
-
-Ne JAMAIS déclarer une tâche terminée si un check échoue sans l'avoir signalé explicitement.
-
-## Agents concernés
-
-| Agent | Gate qualité |
-|---|---|
-| `build` (built-in) | Oui — après chaque changement |
-| `tester` | Oui — les tests générés doivent passer |
-| `refactorer` | Oui — critique, rien ne doit régresser |
-| `orchestrator` | Oui — gate final après tous les sous-agents |
-| `reviewer` | Non — read-only |
-| `debugger` | Non — read-only |
-| `docs-writer` | Non — uniquement de la documentation |
-| `performance` | Non — audit uniquement |
-| `security` | Non — audit uniquement |
+Si `AGENTS.md` est absent, ou si `## Quality Checks` est manquante/vide/placeholders :
+avertir l'utilisateur de lancer `bash ~/dev/agents/setup.sh` puis `/check-agents`,
+et ne pas deviner silencieusement des commandes. Si l'utilisateur refuse de configurer,
+marquer la tâche `completed without quality gate` avec un warning explicite.

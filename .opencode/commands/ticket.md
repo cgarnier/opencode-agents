@@ -27,19 +27,37 @@ Examine l'ID `$1` :
 
 ## Étape 2 — Récupérer le ticket parent
 
+Les sorties CLI sont ingérées dans le contexte. Toujours passer par `--output json` / `--json`
+puis projeter avec `jq` pour ne garder que les champs utiles au planning.
+
 **GitLab :**
 ```bash
+# Métadonnées du ticket (filtrées)
+glab issue view $1 --output json \
+  | jq '{title, description, state, labels,
+         milestone: .milestone.title,
+         assignees: [.assignees[].username]}'
+
+# Commentaires (chargés en entier — volontaire pour garder le contexte de discussion)
 glab issue view $1 --comments
 ```
 
 **GitHub :**
 ```bash
-gh issue view $1
+gh issue view $1 --json title,body,state,labels,assignees,milestone,comments
 ```
 
 **Jira :**
 ```bash
-acli jira issue view $1
+acli jira workitem view $1 --json \
+  | jq '{summary,
+         status: .fields.status.name,
+         labels: .fields.labels,
+         assignee: .fields.assignee.displayName,
+         sprint: (.fields.sprint.name // null),
+         description: .fields.description}'
+
+acli jira workitem comment list --key $1
 ```
 
 Extraire et noter :
@@ -52,6 +70,10 @@ Extraire et noter :
 
 ## Étape 3 — Récupérer les sous-tickets
 
+**Principe :** à cette étape on construit seulement l'arbre (titre + état + labels).
+Les **descriptions des sous-tickets ne sont PAS chargées** ici — elles seront lues
+à la demande lors de l'implémentation de chaque sous-ticket, pas au planning.
+
 **GitLab — via GraphQL :**
 ```bash
 # Extraire le chemin projet depuis le remote (adapter selon SSH ou HTTPS)
@@ -60,17 +82,17 @@ Extraire et noter :
 PROJECT_PATH=$(git remote get-url origin \
   | sed 's/.*github\.com[:/]//;s/.*gitlab\.com[:/]//;s/\.git$//')
 
+# NOTE: `description` est volontairement omise — chargée à la demande plus tard.
 glab api graphql -f query='
 query($path: ID!, $iid: String!) {
   project(fullPath: $path) {
     issue(iid: $iid) {
-      childIssues {
+      childIssues(first: 20) {
         nodes {
           iid
           title
-          description
           state
-          labels { nodes { title } }
+          labels(first: 5) { nodes { title } }
         }
       }
     }
@@ -78,21 +100,28 @@ query($path: ID!, $iid: String!) {
 }' -f path="$PROJECT_PATH" -f iid="$1"
 ```
 
-Si GraphQL ne retourne pas de `childIssues` (GitLab < 15.x ou feature désactivée), utiliser le fallback REST :
+Si GraphQL ne retourne pas de `childIssues` (GitLab < 15.x ou feature désactivée),
+utiliser le fallback REST avec le path URL-encodé (évite un `glab repo view` coûteux) :
 ```bash
-PROJECT_ID=$(glab repo view --output json | jq -r '.id')
-glab api "projects/$PROJECT_ID/issues/$1/links"
+PROJECT_PATH_ENC=$(printf '%s' "$PROJECT_PATH" | jq -sRr @uri)
+glab api "projects/$PROJECT_PATH_ENC/issues/$1/links" \
+  | jq '[.[] | {iid, title, state, labels}]'
 ```
 
 **GitHub :**
 ```bash
-gh api "repos/{owner}/{repo}/issues/$1/sub_issues" 2>/dev/null \
+gh api "repos/{owner}/{repo}/issues/$1/sub_issues" \
+  --jq '[.[] | {number, title, state, labels: [.labels[].name]}]' 2>/dev/null \
   || gh issue view $1 --json body,comments
 ```
 
 **Jira :**
 ```bash
-acli jira issue list --parent $1
+acli jira workitem search --jql "parent = $1" --json \
+  | jq '[.[] | {key,
+                summary: .fields.summary,
+                status: .fields.status.name,
+                labels: .fields.labels}]'
 ```
 
 ---

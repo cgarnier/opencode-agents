@@ -107,6 +107,9 @@ fi
 git worktree prune
 ok "Worktree list pruned"
 
+rm -rf "$WORKTREE_PATH"
+ok "Directory force-removed: $WORKTREE_PATH"
+
 echo ""
 echo -e "  ${GREEN}Done.${NC}"
 echo ""

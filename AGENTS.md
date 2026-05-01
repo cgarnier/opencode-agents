@@ -29,7 +29,13 @@ No application framework, no TypeScript, no build pipeline.
 ├── wt-done.sh                — Tear down a worktree: remove dir, delete branch, prune list
 ├── shell-functions.sh        — Defines the wt-new and wt-done shell functions (must be sourced)
 ├── install-shell-helpers.sh  — One-time installer: injects source shell-functions.sh into .bashrc/.zshrc
-├── opencode.json             — Template OpenCode config (copied into target projects, not used here)
+├── opencode.json             — Active config for this repo + fallback template for setup.sh
+├── opencode.json.templates/  — Per-stack templates merged into target projects by setup.sh
+│   ├── _agents.json          — Shared fragment: small_model + agent model/temperature overrides
+│   ├── generic.json          — Base permissions (build: bash *:allow, plan: deny)
+│   ├── node.json             — Identical to generic (kept for future stack-specific needs)
+│   ├── python.json           — Identical to generic (kept for future stack-specific needs)
+│   └── go.json               — Identical to generic (kept for future stack-specific needs)
 ├── AGENTS.md.template        — Starter AGENTS.md copied into target projects by setup.sh
 └── .opencode/
     ├── package.json      — Single dep: @opencode-ai/plugin
@@ -60,6 +66,7 @@ No application framework, no TypeScript, no build pipeline.
 
 ```bash
 # Install agent system into a target project (run from the target project root)
+# Requires `jq` to merge the shared agents fragment into the stack template
 bash ~/dev/agents/setup.sh
 
 # Create a new worktree + feature branch, then open opencode
@@ -74,19 +81,12 @@ cd .opencode && bun install
 
 ## Quality Checks
 
-These apply to this repo's own shell scripts. Run after any `.sh` file change:
+These apply to this repo's own shell scripts. Run after any `.sh` file change.
 
-```bash
-# Syntax check — run for each modified script
-bash -n setup.sh
-bash -n wt-new.sh
-bash -n wt-done.sh
+- syntax: bash -n setup.sh && bash -n wt-new.sh && bash -n wt-done.sh && bash -n install-shell-helpers.sh && bash -n shell-functions.sh
+- lint: shellcheck setup.sh wt-new.sh wt-done.sh install-shell-helpers.sh shell-functions.sh
 
-# Static analysis (if shellcheck is available)
-shellcheck setup.sh wt-new.sh wt-done.sh
-```
-
-No lint, typecheck, test, or build steps exist for this repo.
+No test, typecheck, format, or build steps exist for this repo (shell + markdown only).
 
 ## Conventions
 
@@ -128,10 +128,12 @@ permission:
 ```
 
 Permission model rules:
-- **Read-only agents** (`reviewer`, `debugger`, `performance`, `security`): `edit: deny`, bash limited to explicit allow list; catch-all is `deny`
-- **Write agents** (`tester`, `refactorer`, `docs-writer`): no `edit: deny`, explicit allow list for common commands; catch-all is `allow` so any stack's tooling works without prompting
-- **Orchestrator**: `task: "*": allow` so it can invoke all subagents; git checkout/pull are `allow`; catch-all is `ask` for truly unexpected commands
-- **Security agent**: most restricted — `edit: deny`, bash limited to `grep *`, `ls*`, `cat *`, `find *` only
+- **Primary agents** (`build`, `orchestrator`): `bash: "*": allow` — zero prompts at the top level. Safety is delegated to (1) the read-only frontmatters of subagents, (2) the `plan` agent for inspection-only sessions, and (3) `.opencode/rules/git-safety.md` which forbids direct work on `main`. Orchestrator also has `task: "*": allow` so it can invoke every subagent.
+- **Plan agent**: `edit: deny`, `bash: deny` — the only fully locked primary, for when you want a read-only brainstorm session.
+- **Read-only subagents** (`reviewer`, `debugger`, `performance`, `security`): `edit: deny`, bash limited to an explicit allow list; catch-all is `deny`. These restrictions live in the agent's frontmatter and cannot be overridden by the project's `opencode.json`.
+- **Write subagents** (`tester`, `refactorer`): no `edit: deny`, `bash: "*": allow` so any stack's tooling works without prompts.
+- **Docs writer**: `edit: allow` but `bash: "*": deny` with a read-only allow list — no build/test execution, only file inspection and `mkdir`/`touch`.
+- **Security agent**: most restricted — `edit: deny`, bash limited to `grep *`, `ls*`, `cat *`, `find *` only.
 
 Agent body is plain markdown using `##` sections. Structure:
 1. One-sentence role statement
@@ -181,7 +183,26 @@ All names in kebab-case. Never commit directly to `main` (enforced by `.opencode
 2. Decide the permission tier (read-only vs write, `mode: primary` vs subagent)
 3. Add a `description:` line that clearly states what tasks it handles — the orchestrator uses this for routing
 4. Add an entry to the routing table in `orchestrator.md` (`## Workflow > Step 2 — Task Analysis`)
-5. Run `bash -n` on any shell scripts you touched, then `shellcheck` if available
+5. If the agent needs a non-default model, add its override to `opencode.json.templates/_agents.json` and mirror it in `opencode.json` at the repo root
+6. Run `bash -n` on any shell scripts you touched, then `shellcheck` if available
+
+## Updating Agent Model Overrides
+
+Model and temperature overrides for custom subagents live in a single fragment:
+`opencode.json.templates/_agents.json`. `setup.sh` deep-merges it into the
+stack-specific template using `jq -s '.[0] * .[1]'` when creating a new
+project's `opencode.json`.
+
+Workflow when changing a model:
+
+1. Edit `opencode.json.templates/_agents.json` — the single source of truth for overrides
+2. Mirror the same change in `opencode.json` at the repo root — this is the active config when opening opencode in this repo and the fallback template when a stack `.json` is missing. Keep both in sync manually.
+3. Existing target projects do NOT auto-update; users must delete their local `opencode.json` and re-run `bash ~/dev/agents/setup.sh` to pick up the new overrides.
+
+Conventions:
+
+- The `_` prefix on `_agents.json` marks it as a fragment, not a selectable stack template. `setup.sh` never picks it up via stack detection.
+- Stack templates (`node.json`, `python.json`, etc.) must NOT define agents that appear in the fragment — the fragment would silently override them. Stack templates are for `build`/`plan` permissions and bash allowlists only.
 
 ## Notes
 

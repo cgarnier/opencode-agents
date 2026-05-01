@@ -3,43 +3,14 @@ description: Main orchestrator — analyzes the task, decides the branch strateg
 mode: primary
 color: "#7c3aed"
 permission:
+  # Tier: ORCHESTRATOR — top-level primary agent.
+  # Catch-all is `allow`: zero prompts at the top level.
+  # Safety relies on (1) read-only subagents whose frontmatters cannot be overridden
+  # by the project config, (2) the `plan` primary for inspection-only sessions,
+  # and (3) the `git-safety.md` rule that forbids direct work on `main`.
+  # To harden a specific project, override with `bash: "*": ask` in its opencode.json.
   bash:
-    "*": ask
-    "git status*": allow
-    "git branch*": allow
-    "git diff*": allow
-    "git log*": allow
-    "git fetch*": allow
-    "git checkout*": allow
-    "git pull*": allow
-    "git add*": allow
-    "ls*": allow
-    "pwd": allow
-    "grep *": allow
-    "find *": allow
-    "sort *": allow
-    "echo *": allow
-    "cat *": allow
-    "wc *": allow
-    "head *": allow
-    "tail *": allow
-    "uv *": allow
-    "npm *": allow
-    "npx *": allow
-    "pnpm *": allow
-    "yarn *": allow
-    "bun *": allow
-    "node *": allow
-    "vitest *": allow
-    "mkdir *": allow
-    "make lint *": allow
-    "make format *": allow
-    "make test *": allow
-    "make migrate *": allow
-    "make migrate-down *": allow
-    "black *": allow
-    "isort *": allow
-    "python -m *": allow
+    "*": allow
   task:
     "*": allow
 ---
@@ -77,6 +48,7 @@ Identify the task type(s) and which specialists are needed:
 | Performance analysis | `@performance` |
 | Security audit | `@security` |
 | Explicit code review request | `@reviewer` on the specified scope |
+| MR/PR review threads to triage | `@mr-reviewer` |
 | Complex task | Multiple specialists in parallel where independent |
 
 ### Step 3 — Delegation / Implementation
@@ -104,11 +76,19 @@ If the branch was forked from a branch other than `main`, adapt accordingly:
 git diff <base-branch>...HEAD
 ```
 
-**2. Pass the diff content directly to `@reviewer`.**
+**2. Pick the review mode based on diff size:**
+
+- Diff < 100 lines AND < 5 files changed → `Mode: quick` (Critical issues only, max 10 lines)
+- Otherwise → `Mode: full` (8-dimension analysis)
+
+Use `git diff main...HEAD --stat` to count files and lines quickly.
+
+**3. Pass the diff content directly to `@reviewer`.**
 
 Do NOT ask the reviewer to run `git diff` itself. Instead, construct the Task call like:
 
 ```
+Mode: <quick|full>
 Review the following diff.
 Context: <brief description of what was changed and why>
 Branch: <current branch>
@@ -119,7 +99,7 @@ Project conventions: <relevant items from AGENTS.md>
 
 The reviewer analyzes the provided content without needing git access.
 
-**3. On review results:**
+**4. On review results:**
 - **Critical** issues → fix them before continuing, then re-collect diff and re-run the review
 - **Warning / Info** → non-blocking, include in the synthesis
 - If `@reviewer` was already explicitly invoked in Step 3 → skip this step

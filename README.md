@@ -23,6 +23,7 @@ Each agent has a precise role and scoped permissions. Global rules ensure `main`
    - [Performance](#59-performance--subagent)
    - [Security](#510-security--subagent)
    - [Git-publisher](#511-git-publisher--subagent)
+   - [Mr-reviewer](#511bis-mr-reviewer--subagent)
 6. [Global rules](#6-global-rules)
    - [git-safety](#61-git-safety)
    - [code-quality](#62-code-quality)
@@ -125,10 +126,25 @@ Done. Run 'opencode' to start.
 | 3 | Symlink `.opencode/rules/` → template | Skip + warning if a real folder already exists |
 | 4 | Symlink `.opencode/commands/` → template | Skip + warning if a real folder already exists |
 | 5 | Symlink `.opencode/skills/` → template | Skip + warning if a real folder already exists |
-| 6 | Copies `opencode.json` | Skip if already present |
+| 6 | Copies `opencode.json` (auto-selects template by detected stack: node/python/go/generic) | Skip if already present |
 | 7 | Copies `AGENTS.md.template` → `AGENTS.md` | Skip if already present |
 
 **Idempotent**: re-running `agents-setup` in an already-configured project is safe.
+
+### Stack-aware `opencode.json` templates
+
+`setup.sh` picks the right `opencode.json` template based on the project's stack:
+
+| Detection | Template used |
+|---|---|
+| `package.json` present | `node.json` |
+| `pyproject.toml`, `setup.py` or `requirements.txt` | `python.json` |
+| `go.mod` present | `go.json` |
+| None of the above | `generic.json` |
+
+All templates currently share the same permission shape: `build` and `orchestrator` get `bash: "*": allow` (zero prompts at the top level), and `plan` stays locked with `edit: deny` / `bash: deny`. The four stack files are kept as separate entry points so you can tighten them independently per stack if a project requires stricter permissions — override in the project's `opencode.json` after install.
+
+Safety is not enforced by top-level prompts. It comes from (1) the read-only frontmatters of `reviewer`, `debugger`, `performance`, `security`, `docs-writer` which cannot be overridden by the project config, (2) the `plan` primary agent for inspection-only sessions, and (3) the `.opencode/rules/git-safety.md` rule that forbids direct work on `main`.
 
 ### Symlink vs copy strategy
 
@@ -177,7 +193,8 @@ If the system were installed globally with a single shared config, a poorly main
     │   ├── docs-writer.md           ← subagent
     │   ├── performance.md           ← subagent
     │   ├── security.md              ← subagent
-    │   └── git-publisher.md         ← subagent
+    │   ├── git-publisher.md         ← subagent
+    │   └── mr-reviewer.md           ← subagent
     │
     ├── commands/                    ← symlinked into each project
     │   ├── ticket.md                ← /ticket <id> [context]
@@ -300,6 +317,10 @@ OpenCode provides two types of agents:
 | Bash | `git diff/log/show`, `grep`, `ls` only |
 
 **Role**: structured code review. Analyzes code across 8 dimensions and returns a hierarchical report.
+
+**Two modes** (selected by the orchestrator based on diff size, or by passing `Mode: quick`/`Mode: full` in the prompt):
+- **Quick** — for small diffs (< 100 lines, < 5 files): Critical issues only, max 10 lines of output. Used by the orchestrator after small code changes to keep the loop fast.
+- **Full** *(default)* — full 8-dimension analysis with Critical / Warning / Info / Positive / Summary sections. Used for large diffs and explicit review requests.
 
 **Dimensions analyzed**:
 - Correctness (logic, edge cases, null handling)
@@ -540,6 +561,28 @@ test: ✓ (N passing)
 **Severity levels**: Critical → High → Medium → Low → Info
 
 **Important**: reports only what is found in the code. Does not construct hypothetical attack chains.
+
+---
+
+### 5.11bis Mr-reviewer — subagent
+
+| Property | Value |
+|---|---|
+| Mode | `subagent` |
+| Color | Violet `#9333ea` |
+| File access | **None** — `edit: deny` |
+| Bash | Git read · `glab mr view/diff/list` · `gh pr view/diff/list` · `gh api` (read-only) |
+
+**Role**: triage of unresolved comments on the current MR/PR. Reads, classifies, proposes actions and reply drafts. Never replies, never pushes, never modifies files.
+
+**Workflow**:
+1. Detect platform (`git remote get-url origin`)
+2. Find the MR/PR for the current branch (`glab mr view --comments` or `gh pr view --comments`)
+3. Collect unresolved threads (GitLab) or all review + issue comments (GitHub via `gh api`)
+4. Classify each thread (Blocker / Change request / Question / Suggestion / Praise / Already addressed)
+5. Output a prioritized action plan with reply drafts
+
+**Use case**: after a reviewer left several comments on your MR, invoke `@mr-reviewer` to get a structured summary instead of clicking through threads in the web UI. The orchestrator can then dispatch fixes to `@build` and reply drafts to `@git-publisher`.
 
 ---
 
@@ -1101,6 +1144,124 @@ Build:
 
 ---
 
+## 9bis. Agent permissions matrix
+
+Agents are grouped into four permission tiers. Every agent's `permission.bash` allowlist should match one of these tiers. Project-specific commands (e.g. `make migrate`, `npm run db:seed`) **must live in the project's `opencode.json`**, never in the global agent definitions — otherwise they pollute every project using the symlink.
+
+### Tier READ — read-only agents
+
+Agents: `reviewer`, `debugger`, `performance`, `security`, `docs-writer` (+`edit: allow` for docs files only).
+
+```yaml
+edit: deny              # security/performance/reviewer/debugger — docs-writer overrides with allow
+bash:
+  "*": deny
+  "git diff*": allow
+  "git log*": allow
+  "git show*": allow
+  "git blame*": allow
+  "git branch*": allow
+  "git status*": allow
+  "git remote*": allow
+  "ls*": allow
+  "cat *": allow
+  "grep *": allow
+  "find *": allow
+  "head *": allow
+  "tail *": allow
+  "sort *": allow
+  "wc *": allow
+  "pwd": allow
+```
+
+### Tier WRITE — code-modifying agents
+
+Agents: `tester`, `refactorer`. Inherits READ + build/test tooling.
+
+```yaml
+edit: allow
+bash:
+  "*": allow              # catch-all allow so any stack's CLI works without prompting
+  # + all READ entries
+  "echo *": allow
+  "mkdir *": allow
+  "touch *": allow
+  "npm *": allow
+  "npx *": allow
+  "pnpm *": allow
+  "yarn *": allow
+  "bun *": allow
+  "node *": allow
+  "vitest *": allow
+  "uv *": allow
+  "python *": allow
+  "python3 *": allow
+  "pytest *": allow
+  "ruff *": allow
+  "black *": allow
+  "isort *": allow
+  "mypy *": allow
+  "make *": allow
+```
+
+### Tier ORCHESTRATOR
+
+Inherits WRITE + branch management. The frontmatter keeps the catch-all at `ask` as a conservative default — the orchestrator delegates, it shouldn't silently run arbitrary shell.
+
+```yaml
+bash:
+  "*": ask
+  # + all READ and WRITE entries
+  "git fetch*": allow
+  "git checkout*": allow
+  "git pull*": allow
+  "git add*": allow
+task:
+  "*": allow
+```
+
+In practice the project's `opencode.json` (generated by `setup.sh`) overrides this with `bash: "*": allow` so you are never prompted at the top level. Remove that override if you want the conservative default back.
+
+### Tier PUBLISHER
+
+Agent: `git-publisher`. READ + git commit/push + MR/PR creation.
+
+```yaml
+edit: deny
+bash:
+  "*": deny
+  # + all READ entries
+  "git add*": allow
+  "git commit*": allow
+  "git push*": allow
+  "glab mr *": allow
+  "glab issue view*": allow
+  "gh pr *": allow
+  "gh issue view*": allow
+```
+
+### Where to put project-specific commands
+
+Never in agent files. Always in the project's `opencode.json`:
+
+```jsonc
+{
+  "agent": {
+    "orchestrator": {
+      "permission": {
+        "bash": {
+          "make migrate": "allow",
+          "make seed": "allow",
+          "npm run db:*": "allow"
+        }
+      }
+    }
+  }
+}
+```
+
+---
+
 ## 10. Customization
 
 ### Adding a project-specific agent
@@ -1310,6 +1471,7 @@ wt-new feature/notifications --from current
 | `performance` | subagent | Amber | No | ls · grep · cat · find | Performance audit |
 | `security` | subagent | Dark red | No | grep · ls · cat · find (read-only) | Security audit |
 | `git-publisher` | subagent | Indigo | No | Git read/add/commit/push · glab · gh | Commit + MR/PR |
+| `mr-reviewer` | subagent | Violet | No | Git read · glab/gh view/diff (read-only) | Triage MR/PR review threads |
 
 ### Useful OpenCode commands
 

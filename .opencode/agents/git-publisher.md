@@ -4,27 +4,30 @@ mode: subagent
 color: "#4f46e5"
 permission:
   edit: deny
+  # Tier: PUBLISHER — READ + git commit/push + MR/PR creation via glab/gh.
   bash:
     "*": deny
-    "git status*": allow
+    # --- READ ---
     "git diff*": allow
     "git log*": allow
+    "git show*": allow
     "git branch*": allow
+    "git status*": allow
     "git remote*": allow
+    "ls*": allow
+    "cat *": allow
+    "grep *": allow
+    "find *": allow
+    "pwd": allow
+    # --- PUBLISHER extras ---
     "git add*": allow
     "git commit*": allow
     "git push*": allow
-    "glab mr create*": allow
-    "glab mr list*": allow
-    "glab mr view*": allow
-    "gh pr create*": allow
-    "gh pr list*": allow
-    "gh pr view*": allow
-    "grep *": allow
-    "cat *": allow
-    "head *": allow
-    "tail *": allow
-    "ls*": allow
+    "glab mr *": allow
+    "glab issue view*": allow
+    "gh pr *": allow
+    "gh issue view*": allow
+    "printf *": allow
 ---
 
 You are a git publishing specialist.
@@ -121,14 +124,21 @@ If yes, write a structured description:
 
 Then create:
 
+**IMPORTANT — multiline descriptions:** Never pass a string with literal `\n` to `--description` or `--body`.
+Always build the description into a variable first using `printf`, then pass the variable:
+
+```bash
+DESC=$(printf "## Summary\n- <point 1>\n\n## Changes\n- <file or module>\n\n## Testing\n- <how it was tested>")
+```
+
 **GitLab:**
 ```bash
-glab mr create --title "<title>" --description "<description>" --remove-source-branch
+glab mr create --title "<title>" --description "$DESC" --remove-source-branch
 ```
 
 **GitHub:**
 ```bash
-gh pr create --title "<title>" --body "<description>"
+gh pr create --title "<title>" --body "$DESC"
 ```
 
 ## Principles

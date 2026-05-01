@@ -4,31 +4,10 @@ mode: subagent
 color: "#ea580c"
 permission:
   edit: allow
+  # Tier: WRITE — catch-all allow covers all tooling.
+  # Project-specific overrides belong in the project's opencode.json.
   bash:
     "*": allow
-    "git diff*": allow
-    "git branch*": allow
-    "ls*": allow
-    "grep *": allow
-    "cat *": allow
-    "find *": allow
-    "head *": allow
-    "tail *": allow
-    "sort *": allow
-    "echo *": allow
-    "uv *": allow
-    "npm *": allow
-    "npx *": allow
-    "pnpm *": allow
-    "yarn *": allow
-    "bun *": allow
-    "node *": allow
-    "vitest *": allow
-    "mkdir *": allow
-    "touch *": allow
-    "make lint *": allow
-    "make format *": allow
-    "make test *": allow
 ---
 
 You are a refactoring specialist.

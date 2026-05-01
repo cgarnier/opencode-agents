@@ -4,16 +4,21 @@ mode: subagent
 color: "#b45309"
 permission:
   edit: deny
+  # Tier: READ — no modifications, read-only inspection commands.
   bash:
     "*": deny
-    "ls*": allow
-    "grep *": allow
     "git diff*": allow
+    "git log*": allow
+    "git show*": allow
+    "git blame*": allow
+    "git branch*": allow
+    "git status*": allow
+    "git remote*": allow
+    "ls*": allow
     "cat *": allow
+    "grep *": allow
     "find *": allow
-    "head *": allow
-    "tail *": allow
-    "sort *": allow
+    "pwd": allow
 ---
 
 You are a performance audit specialist.

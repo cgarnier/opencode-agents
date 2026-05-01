@@ -4,16 +4,21 @@ mode: subagent
 color: "#0369a1"
 permission:
   edit: allow
+  # Tier: READ + docs file creation (mkdir/touch). No build/test execution.
   bash:
     "*": deny
-    "ls*": allow
-    "git log*": allow
     "git diff*": allow
-    "grep *": allow
+    "git log*": allow
+    "git show*": allow
+    "git blame*": allow
+    "git branch*": allow
+    "git status*": allow
+    "git remote*": allow
+    "ls*": allow
     "cat *": allow
+    "grep *": allow
     "find *": allow
-    "head *": allow
-    "tail *": allow
+    "pwd": allow
     "mkdir *": allow
     "touch *": allow
 ---
