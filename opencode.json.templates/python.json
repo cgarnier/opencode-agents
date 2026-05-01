@@ -8,25 +8,7 @@
     "build": {
       "permission": {
         "bash": {
-          "*": "ask",
-          "git status*": "allow",
-          "git diff*": "allow",
-          "git log*": "allow",
-          "git branch*": "allow",
-          "git fetch*": "allow",
-          "ls*": "allow",
-          "pwd": "allow",
-          "uv *": "allow",
-          "python *": "allow",
-          "python3 *": "allow",
-          "pip *": "allow",
-          "poetry *": "allow",
-          "pytest *": "allow",
-          "ruff *": "allow",
-          "black *": "allow",
-          "isort *": "allow",
-          "mypy *": "allow",
-          "pyright *": "allow"
+          "*": "allow"
         }
       }
     },

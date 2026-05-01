@@ -3,28 +3,14 @@ description: Main orchestrator — analyzes the task, decides the branch strateg
 mode: primary
 color: "#7c3aed"
 permission:
-  # Tier: ORCHESTRATOR — WRITE + branch management + task delegation.
-  # Catch-all is `ask` (not `allow`) because the orchestrator should never silently
-  # run unexpected commands at the top level — it delegates to specialists instead.
-  # Project-specific commands (e.g. `make migrate`) belong in the project's opencode.json.
+  # Tier: ORCHESTRATOR — top-level primary agent.
+  # Catch-all is `allow`: zero prompts at the top level.
+  # Safety relies on (1) read-only subagents whose frontmatters cannot be overridden
+  # by the project config, (2) the `plan` primary for inspection-only sessions,
+  # and (3) the `git-safety.md` rule that forbids direct work on `main`.
+  # To harden a specific project, override with `bash: "*": ask` in its opencode.json.
   bash:
-    "*": ask
-    # --- READ ---
-    "git status*": allow
-    "git diff*": allow
-    "git log*": allow
-    "git show*": allow
-    "git branch*": allow
-    "git remote*": allow
-    "ls*": allow
-    "cat *": allow
-    "grep *": allow
-    "find *": allow
-    "pwd": allow
-    # --- ORCHESTRATOR extras (branch management) ---
-    "git fetch*": allow
-    "git checkout*": allow
-    "git pull*": allow
+    "*": allow
   task:
     "*": allow
 ---

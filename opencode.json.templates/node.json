@@ -8,24 +8,7 @@
     "build": {
       "permission": {
         "bash": {
-          "*": "ask",
-          "git status*": "allow",
-          "git diff*": "allow",
-          "git log*": "allow",
-          "git branch*": "allow",
-          "git fetch*": "allow",
-          "ls*": "allow",
-          "pwd": "allow",
-          "npm *": "allow",
-          "npx *": "allow",
-          "pnpm *": "allow",
-          "yarn *": "allow",
-          "bun *": "allow",
-          "node *": "allow",
-          "vitest *": "allow",
-          "tsc *": "allow",
-          "eslint *": "allow",
-          "prettier *": "allow"
+          "*": "allow"
         }
       }
     },

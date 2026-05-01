@@ -3,7 +3,12 @@
   "agent": {
     "orchestrator": {
       "model": "anthropic/claude-sonnet-4-6",
-      "temperature": 0.2
+      "temperature": 0.2,
+      "permission": {
+        "bash": {
+          "*": "allow"
+        }
+      }
     },
     "reviewer": {
       "model": "anthropic/claude-sonnet-4-6",

@@ -32,10 +32,10 @@ No application framework, no TypeScript, no build pipeline.
 ├── opencode.json             — Active config for this repo + fallback template for setup.sh
 ├── opencode.json.templates/  — Per-stack templates merged into target projects by setup.sh
 │   ├── _agents.json          — Shared fragment: small_model + agent model/temperature overrides
-│   ├── generic.json          — Base permissions (no stack-specific tooling)
-│   ├── node.json             — Node/Bun/TS tooling allowlist
-│   ├── python.json           — Python tooling allowlist
-│   └── go.json               — Go tooling allowlist
+│   ├── generic.json          — Base permissions (build: bash *:allow, plan: deny)
+│   ├── node.json             — Identical to generic (kept for future stack-specific needs)
+│   ├── python.json           — Identical to generic (kept for future stack-specific needs)
+│   └── go.json               — Identical to generic (kept for future stack-specific needs)
 ├── AGENTS.md.template        — Starter AGENTS.md copied into target projects by setup.sh
 └── .opencode/
     ├── package.json      — Single dep: @opencode-ai/plugin
@@ -128,10 +128,12 @@ permission:
 ```
 
 Permission model rules:
-- **Read-only agents** (`reviewer`, `debugger`, `performance`, `security`): `edit: deny`, bash limited to explicit allow list; catch-all is `deny`
-- **Write agents** (`tester`, `refactorer`, `docs-writer`): no `edit: deny`, explicit allow list for common commands; catch-all is `allow` so any stack's tooling works without prompting
-- **Orchestrator**: `task: "*": allow` so it can invoke all subagents; git checkout/pull are `allow`; catch-all is `ask` for truly unexpected commands
-- **Security agent**: most restricted — `edit: deny`, bash limited to `grep *`, `ls*`, `cat *`, `find *` only
+- **Primary agents** (`build`, `orchestrator`): `bash: "*": allow` — zero prompts at the top level. Safety is delegated to (1) the read-only frontmatters of subagents, (2) the `plan` agent for inspection-only sessions, and (3) `.opencode/rules/git-safety.md` which forbids direct work on `main`. Orchestrator also has `task: "*": allow` so it can invoke every subagent.
+- **Plan agent**: `edit: deny`, `bash: deny` — the only fully locked primary, for when you want a read-only brainstorm session.
+- **Read-only subagents** (`reviewer`, `debugger`, `performance`, `security`): `edit: deny`, bash limited to an explicit allow list; catch-all is `deny`. These restrictions live in the agent's frontmatter and cannot be overridden by the project's `opencode.json`.
+- **Write subagents** (`tester`, `refactorer`): no `edit: deny`, `bash: "*": allow` so any stack's tooling works without prompts.
+- **Docs writer**: `edit: allow` but `bash: "*": deny` with a read-only allow list — no build/test execution, only file inspection and `mkdir`/`touch`.
+- **Security agent**: most restricted — `edit: deny`, bash limited to `grep *`, `ls*`, `cat *`, `find *` only.
 
 Agent body is plain markdown using `##` sections. Structure:
 1. One-sentence role statement

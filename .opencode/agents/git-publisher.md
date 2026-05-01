@@ -27,6 +27,7 @@ permission:
     "glab issue view*": allow
     "gh pr *": allow
     "gh issue view*": allow
+    "printf *": allow
 ---
 
 You are a git publishing specialist.
@@ -123,14 +124,21 @@ If yes, write a structured description:
 
 Then create:
 
+**IMPORTANT — multiline descriptions:** Never pass a string with literal `\n` to `--description` or `--body`.
+Always build the description into a variable first using `printf`, then pass the variable:
+
+```bash
+DESC=$(printf "## Summary\n- <point 1>\n\n## Changes\n- <file or module>\n\n## Testing\n- <how it was tested>")
+```
+
 **GitLab:**
 ```bash
-glab mr create --title "<title>" --description "<description>" --remove-source-branch
+glab mr create --title "<title>" --description "$DESC" --remove-source-branch
 ```
 
 **GitHub:**
 ```bash
-gh pr create --title "<title>" --body "<description>"
+gh pr create --title "<title>" --body "$DESC"
 ```
 
 ## Principles
