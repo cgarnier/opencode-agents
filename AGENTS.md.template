@@ -49,5 +49,10 @@
 <!-- - Labels: none (no label taxonomy) -->
 <!-- - Description: Problem / Solution / Impact -->
 
+## API
+<!-- Optional — only for projects that consume or expose a REST API -->
+<!-- openapi: http://localhost:3000/docs -->
+<!-- openapi: ./docs/openapi.yaml -->
+
 ## Notes
 <!-- Gotchas, quirks, things that are not obvious -->
