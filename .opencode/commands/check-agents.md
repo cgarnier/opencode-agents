@@ -39,7 +39,8 @@ Extract all `## Heading` sections from each file.
 5. Conventions
 6. Tracker
 7. Ticket conventions
-8. Notes
+8. API
+9. Notes
 
 ---
 
@@ -102,6 +103,60 @@ Leave as minimal placeholder if Tracker is being set up for the first time:
 ```
 <!-- See /new-ticket for defaults -->
 ```
+
+### API
+
+**1. Passive detection — look for server-side signals:**
+
+Search for static spec files in the repo:
+```bash
+find . -maxdepth 5 \( -name "swagger.json" -o -name "swagger.yaml" \
+  -o -name "openapi.json" -o -name "openapi.yaml" \) \
+  -not -path "*/node_modules/*" 2>/dev/null | head -5
+```
+
+Check for swagger-related dependencies in `package.json` (if present):
+```bash
+jq '[(.dependencies // {}), (.devDependencies // {}) | to_entries[]
+  | select(.key | test("swagger|openapi"; "i")) | .key]' package.json 2>/dev/null
+```
+
+If a spec file is found → propose:
+```
+openapi: ./<path-to-file>
+```
+
+If a server-side swagger dependency is found (e.g. `@nestjs/swagger`, `swagger-ui-express`, `fastapi`) but no file → propose:
+```
+openapi: http://localhost:<PORT>/docs
+```
+Infer the port from `package.json` scripts or `.env*` files if possible.
+
+**2. Interactive prompt — frontend projects only:**
+
+If no passive signal was found, detect whether this is a frontend-only project:
+- Frontend indicators in `package.json` dependencies: `react`, `vue`, `nuxt`, `next`, `angular`, `svelte`, `vite`
+- Backend indicators: `express`, `fastify`, `nestjs`, `hono`, `koa`, `strapi`, `adonis`
+
+If **frontend indicators present AND no backend indicators** → ask interactively:
+
+```
+Frontend project detected (<framework>).
+Does this project consume a REST API? [y/N]
+```
+
+If yes:
+```
+Is there an OpenAPI/Swagger spec for that API?
+  1. Yes — URL   (e.g. http://localhost:3000/docs)
+  2. Yes — file  (e.g. ./docs/openapi.yaml)
+  3. Not yet / unknown
+```
+
+- If URL or file provided → propose `openapi: <value>`
+- If unknown → leave the section with the comment placeholder only (no `openapi:` line)
+
+**3. No signals, not a frontend → leave `## API` with comment placeholder only.** Do not prompt, do not invent.
 
 ### Notes
 Leave empty (no placeholder invented — better to have nothing than noise).

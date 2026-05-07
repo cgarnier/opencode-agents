@@ -134,6 +134,69 @@ Explorer les fichiers/modules susceptibles d'être impactés en fonction des tit
 
 ---
 
+## Étape 4bis — Découverte du spec OpenAPI/Swagger
+
+**Objectif :** enrichir le plan avec le contrat API réel plutôt que de supposer les endpoints.
+
+### 1. Lire `AGENTS.md` en premier
+
+```bash
+grep -iE "^\s*openapi:" AGENTS.md 2>/dev/null
+```
+
+- Si une valeur `openapi: <url-ou-chemin>` est trouvée → passer directement au §3.
+- Sinon → continuer avec la recherche passive (§2).
+
+### 2. Recherche passive dans le repo
+
+```bash
+find . -maxdepth 5 \( -name "swagger.json" -o -name "swagger.yaml" \
+  -o -name "openapi.json" -o -name "openapi.yaml" \) \
+  -not -path "*/node_modules/*" 2>/dev/null | head -5
+```
+
+Utiliser le premier fichier trouvé s'il existe.
+
+### 3. Fetch et filtrage du spec
+
+**Si URL :**
+```bash
+curl -sf <URL>
+```
+
+**Si fichier :** lire directement.
+
+Une fois le spec obtenu, extraire uniquement les paths pertinents au ticket.
+Construire les keywords à partir des titres et descriptions récupérés aux étapes 2 et 3
+(noms de ressources, actions, entités métier) et filtrer :
+
+```bash
+# Exemple avec jq — adapter les keywords selon le contenu du ticket
+curl -sf <URL> | jq '
+  {
+    info: .info,
+    paths: (.paths | to_entries
+      | map(select(.key | test("<keyword1>|<keyword2>"; "i")))
+      | from_entries)
+  }'
+```
+
+Si le spec est vide après filtrage → tenter sans filtre sur les 20 premiers paths :
+```bash
+curl -sf <URL> | jq '{info: .info, paths: (.paths | to_entries | .[0:20] | from_entries)}'
+```
+
+### 4. Cas "rien trouvé"
+
+Si ni `AGENTS.md`, ni fichier statique ne retournent un spec → noter dans le plan :
+
+> ⚠️ Aucun spec OpenAPI détecté. Vérifier la section `## API` dans `AGENTS.md`.
+> L'analyse des endpoints repose sur le code source.
+
+Continuer sans bloquer.
+
+---
+
 ## Étape 5 — Produire le plan d'implémentation
 
 Produire un document structuré avec le format suivant :
@@ -148,6 +211,13 @@ Produire un document structuré avec le format suivant :
 | ID  | Titre | État | Taille estimée |
 |-----|-------|------|----------------|
 | #x  | ...   | open | M              |
+
+### Contrat API
+<!-- Présent uniquement si un spec OpenAPI a été trouvé à l'étape 4bis -->
+<!-- Omettre cette section entière si aucun spec n'est disponible -->
+| Méthode | Path | Paramètres clés | Réponse attendue |
+|---------|------|-----------------|------------------|
+<!-- Une ligne par endpoint pertinent identifié dans le spec filtré -->
 
 ### Analyse technique
 **Modules / fichiers impactés :**
