@@ -87,11 +87,19 @@ if [ "$FROM_BASE" = "current" ]; then
   info "Using current branch as base: ${BASE_BRANCH}"
 elif [ -n "$FROM_BASE" ]; then
   BASE_BRANCH="$FROM_BASE"
-else
-  # Auto-detect main vs master
+  else
+  # Base par défaut : main/master
   BASE_BRANCH="main"
   if ! git show-ref --verify --quiet refs/heads/main; then
     BASE_BRANCH="master"
+  fi
+
+  # Sans --from : si la branche courante n'a pas de préfixe (staging, test, dev…),
+  # on forke depuis elle. Les branches préfixées (feat/x, fix/y) gardent main/master.
+  CURRENT_BRANCH=$(git branch --show-current)
+  if [ -n "$CURRENT_BRANCH" ] && [[ "$CURRENT_BRANCH" != */* ]]; then
+    BASE_BRANCH="$CURRENT_BRANCH"
+    info "On '${CURRENT_BRANCH}' (no prefix) — using it as base branch"
   fi
 fi
 
