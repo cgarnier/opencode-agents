@@ -933,7 +933,7 @@ Copied into each project by `agents-setup`. Customize it per project.
 // Use a specific model for an agent
 "agent": {
   "orchestrator": {
-    "model": "anthropic/claude-opus-4-5"
+    "model": "anthropic/claude-opus-5-5"
   }
 }
 

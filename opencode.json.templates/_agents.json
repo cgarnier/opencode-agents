@@ -1,8 +1,8 @@
 {
-  "small_model": "openai/gpt-5-nano",
+  "small_model": "anthropic/claude-haiku-4-5",
   "agent": {
     "orchestrator": {
-      "model": "anthropic/claude-sonnet-4-6",
+      "model": "anthropic/claude-opus-5-5",
       "temperature": 0.2,
       "permission": {
         "bash": {
@@ -11,31 +11,31 @@
       }
     },
     "reviewer": {
-      "model": "anthropic/claude-sonnet-4-6",
+      "model": "anthropic/claude-sonnet-5-5",
       "temperature": 0.1
     },
     "debugger": {
-      "model": "anthropic/claude-sonnet-4-6",
+      "model": "anthropic/claude-opus-5-5",
       "temperature": 0.1
     },
     "tester": {
-      "model": "opencode-go/kimi-k2.6",
+      "model": "anthropic/claude-sonnet-5-5",
       "temperature": 0.2
     },
     "refactorer": {
-      "model": "opencode-go/kimi-k2.6",
+      "model": "anthropic/claude-sonnet-5-5",
       "temperature": 0.2
     },
     "performance": {
-      "model": "anthropic/claude-sonnet-4-6",
+      "model": "anthropic/claude-sonnet-5-5",
       "temperature": 0.1
     },
     "security": {
-      "model": "anthropic/claude-sonnet-4-6",
+      "model": "anthropic/claude-opus-5-5",
       "temperature": 0.1
     },
     "docs-writer": {
-      "model": "anthropic/claude-haiku-4-5",
+      "model": "anthropic/claude-sonnet-5-5",
       "temperature": 0.3
     },
     "git-publisher": {

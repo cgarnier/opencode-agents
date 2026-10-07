@@ -889,7 +889,7 @@ Copié dans chaque projet par `agents-setup`. À customiser selon le projet.
 // Utiliser un modèle spécifique pour un agent
 "agent": {
   "orchestrator": {
-    "model": "anthropic/claude-opus-4-5"
+    "model": "anthropic/claude-opus-5-5"
   }
 }
 
