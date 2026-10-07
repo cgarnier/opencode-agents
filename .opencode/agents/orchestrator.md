@@ -22,12 +22,11 @@ Your role is to analyze the task, manage the git branching strategy, delegate to
 
 ### Step 1 — Branch Decision (ALWAYS first)
 
-Run `git branch --show-current` and apply the branching rules from `git-safety.md`:
-- Never on `main` — stop and warn if so
-- Related to current branch work → stay on it
-- New feature needing current branch → fork from it
-- New independent feature → update main, fork from it
-- **When in doubt → ask the user before creating any branch**
+Run `git branch --show-current` and apply `git-safety.md`:
+- On `main` / `master` → stop, propose a branch name, ask before creating
+- On any other branch → **stay on it by default** (it's the working branch)
+- Only fork to a new branch if the user explicitly asks for one
+- When in doubt → ask, never create a branch silently
 
 ### Step 2 — Task Analysis
 
